@@ -1,0 +1,12 @@
+syntax = "proto3";
+package connection;
+
+service Connection {
+    rpc ConnectToServer (stream MessageEvent) returns (stream MessageEvent) {}
+}
+
+message MessageEvent {
+    required string type = 1;
+    required string client_id = 2;
+    required string payload = 3; // { action: 'SOMETHING_WORKFLOW_ACTION' }
+}

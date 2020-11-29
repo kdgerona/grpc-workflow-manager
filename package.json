@@ -1,0 +1,20 @@
+{
+  "name": "grpc-workflow-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf ./dist && tsc",
+    "dev": "npm run build && ts-node ./src/index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@grpc/proto-loader": "^0.5.5",
+    "@types/uuid": "^8.3.0",
+    "grpc": "^1.24.4",
+    "uuid": "^8.3.1",
+    "xstate": "^4.14.0"
+  }
+}
