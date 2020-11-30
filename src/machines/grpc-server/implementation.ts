@@ -26,11 +26,19 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
             }
         }),
         logNewClientConnected: log((_,event) => `GRPC Client Connected: ${event.payload.client_id}`),
+        sendToClient: (context, { payload }) => {
+            const { client_id } = payload
+            const { clients } = context
+
+            clients[client_id].write(payload)
+        },
+        logClientDisconnected: log((_, event) => `GRPC Client Disconnected: ${event.payload.client_id}`),
         removeDisconnectedClient: assign({
             clients: (context, event) => {
                 const { client_id } = event.payload
                 const { [client_id]: client_stream, ...new_clients } = context.clients
 
+                client_stream.end()
 
                 return {
                     ...new_clients
