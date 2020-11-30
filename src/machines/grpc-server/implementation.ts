@@ -26,19 +26,11 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
             }
         }),
         logNewClientConnected: log((_,event) => `GRPC Client Connected: ${event.payload.client_id}`),
-        sendToClient: (context, event) => {
-            const { client_id } = event.payload
-            const { clients } = context
-
-            clients[client_id].write(event)
-        },
-        logClientDisconnected: log((_, event) => `GRPC Client Disconnected: ${event.payload.client_id}`),
         removeDisconnectedClient: assign({
             clients: (context, event) => {
                 const { client_id } = event.payload
                 const { [client_id]: client_stream, ...new_clients } = context.clients
 
-                client_stream.end()
 
                 return {
                     ...new_clients
@@ -48,6 +40,9 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
         logStreamError: log((_, event) => `Stream Error: ${JSON.stringify(event.payload.error, null, 4)}`),
         incrementRetryCount: assign({
             retry_count: (context) => context.retry_count + 1
+        }),
+        resetRetryCount: assign<IGrpcServerContext>({
+            retry_count: 0
         }),
         logServerStartError: log(`*** GRPC Server Start Error ***`)
     },

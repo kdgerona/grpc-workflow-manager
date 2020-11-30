@@ -1,5 +1,5 @@
 {
-  "name": "grpc-spike",
+  "name": "grpc-workflow-manager",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
