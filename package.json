@@ -12,7 +12,9 @@
   "license": "ISC",
   "dependencies": {
     "@grpc/proto-loader": "^0.5.5",
+    "@types/async-redis": "^1.1.1",
     "@types/uuid": "^8.3.0",
+    "async-redis": "^1.1.7",
     "grpc": "^1.24.4",
     "uuid": "^8.3.1",
     "xstate": "^4.14.0"
