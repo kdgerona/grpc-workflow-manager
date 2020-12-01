@@ -31,7 +31,8 @@ const config: MachineConfig<IGrpcServerContext,IGrpcServerSchema,IGrpcServerEven
                     onDone: {
                         actions: [
                             'logServerInitialized',
-                            'assignGrpcServerInstance'
+                            'assignGrpcServerInstance',
+                            'resetRetryCount'
                         ],
                         target: 'running'
                     },
