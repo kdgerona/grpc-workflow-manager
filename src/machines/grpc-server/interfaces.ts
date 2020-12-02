@@ -1,3 +1,4 @@
+import { Actor } from 'xstate'
 import { Server, ServerDuplexStream } from 'grpc'
 
 export interface IGrpcServerContext {
@@ -7,8 +8,11 @@ export interface IGrpcServerContext {
     max_retry_count: number
     retry_count: number
     grpc_server?: Server
+    // clients: {
+    //     [key: string]: ServerDuplexStream<IMessageEvent,IMessageEvent>
+    // }
     clients: {
-        [key: string]: ServerDuplexStream<IMessageEvent,IMessageEvent>
+        [key: string]: any
     }
 }
 

@@ -51,7 +51,10 @@ const config: MachineConfig<IGrpcServerContext,IGrpcServerSchema,IGrpcServerEven
             },
             on: {
                 NEW_CONNECTION: {
-                    actions: ['assignClientConnection', 'logNewClientConnected']
+                    actions: [
+                        'logNewClientConnected',
+                        'spawnClientStream'
+                    ]
                 },
                 SEND_TO_CLIENT: {
                     actions: ['sendToClient']

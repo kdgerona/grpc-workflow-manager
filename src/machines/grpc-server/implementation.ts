@@ -1,8 +1,12 @@
-import { MachineOptions, actions, assign, send } from 'xstate'
+import { MachineOptions, actions, assign, send, spawn } from 'xstate'
 import { loadPackageDefinition, Server, ServerCredentials, ServerDuplexStream } from 'grpc'
 import { loadSync } from '@grpc/proto-loader'
 import { v4 as uuidv4 } from 'uuid'
 import { IGrpcServerContext, IMessageEvent } from './interfaces'
+
+// Machines
+import clientStream from './machines/client-stream' 
+
 const { log } = actions
 
 const implementation: MachineOptions<IGrpcServerContext, any> = {
@@ -15,30 +19,31 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
         assignGrpcServerInstance: assign({
             grpc_server: (_, { data }) => data
         }),
-        assignClientConnection: assign({
+        spawnClientStream: assign({
             clients: (context, event) => {
                 const {client_id, stream} = event.payload
-
+                
                 return {
                     ...context.clients,
-                    [client_id]: stream
+                    [client_id]: spawn(clientStream.withContext({
+                        client_id,
+                        stream
+                    }), client_id)
                 }
             }
         }),
         logNewClientConnected: log((_,event) => `GRPC Client Connected: ${event.payload.client_id}`),
-        sendToClient: (context, { payload }) => {
-            const { client_id } = payload
-            const { clients } = context
-
-            clients[client_id].write(payload)
-        },
+        sendToClient: send((_, { payload }) => ({
+            type: 'SEND_EVENT_TO_CLIENT',
+            payload
+        }), { to: (_, { payload }) => payload.client_id}),
         logClientDisconnected: log((_, event) => `GRPC Client Disconnected: ${event.payload.client_id}`),
         removeDisconnectedClient: assign({
             clients: (context, event) => {
                 const { client_id } = event.payload
                 const { [client_id]: client_stream, ...new_clients } = context.clients
 
-                client_stream.end()
+                client_stream.stop()
 
                 return {
                     ...new_clients
@@ -73,12 +78,6 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
             // Connection Handler
             const connectToServer = (stream: ServerDuplexStream<IMessageEvent, IMessageEvent>) => {
                 const client_id = uuidv4()
-                const connection_closed = {
-                    type: 'CONNECTION_CLOSED',
-                    payload: {
-                        client_id
-                    }
-                }
 
                 send({
                     type: 'NEW_CONNECTION',
@@ -86,28 +85,6 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
                         client_id,
                         stream
                     }
-                })
-                
-                stream.on('data', data => {
-                    // send(data)
-
-                    console.log(data)
-                })
-
-                stream.on('error', error => {
-                    // Send error data
-                    send({
-                        type: 'STREAM_ERROR',
-                        payload: {
-                            error
-                        }
-                    })
-
-                    send(connection_closed)
-                })
-
-                stream.on('end', () => {
-                    send(connection_closed)
                 })
 
                 // This servers as client acknowledgement

@@ -17,6 +17,10 @@ const implementation: MachineOptions<IManagerContext, any> = {
         //     type: 'REDIS_CONNECTED',
         //     payload
         // }), { to: 'start-tracker'})
+        sendTaskToScheduler: send((_, { payload }) => ({
+            type: 'ENQUEUE_TASK',
+            payload
+        }), { to: 'start-scheduler'})
     },
     services: {
         initGrpcServer: GrpcServer,
