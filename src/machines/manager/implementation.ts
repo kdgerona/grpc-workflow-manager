@@ -1,6 +1,7 @@
 import { MachineOptions, send, assign, spawn, actions } from 'xstate'
 import { v4 as uuidv4 } from 'uuid'
 import { IManagerContext } from './interfaces'
+import { Consumer, Producer } from 'xkafka'
 const { log } = actions
 
 // Machines
@@ -86,9 +87,11 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 console.log('!!!!!', e)
             }
         },
-        logReadyWorker: log((_: any, { client_id }: any) => `*** Worker ${client_id} is ready`),
+        logReadyWorker: log((_: any, { client_id }: any) => `*** Worker ${client_id} is ready ***`),
         pushToWorkerQueue: async ({ redis }, { client_id }) => {
             try {
+                if(!client_id) return
+                
                 const queue_worker = await redis.rpush('worker_queue', client_id)
 
                 console.log(`!!! Worker queue`, queue_worker)
@@ -112,12 +115,33 @@ const implementation: MachineOptions<IManagerContext, any> = {
         //         type: 'SEND_TO_CLIENT'
         //     }
         // })
-        setActiveTask: () => {}
+        setActiveTask: async ({ redis }, { client_id, payload}) => {
+            const active_task = await redis.set(`active-${payload.task_id}`, client_id)
+        },
+        requeueTask: async ({ redis }, { payload }) => {
+            const requeue_task = await redis.rpush('task_queue', payload.task_id)
+        },
+        produceResultToSession: (_, event) => {
+            console.log('Done', event)
+        }
     },
     services: {
         initGrpcServer: GrpcServer,
         initRedisClient: RedisClient,
         startScheduler: Scheduler,
+        // Kafka
+        startKafkaProducer: Producer({ 
+            topic: process.env.PRODUCER_TOPIC || '',
+            brokers: process.env.KAFKA_BROKERS || '',
+        }),
+        startKafkaConsumer: Consumer({
+            topics: process.env.CONSUMER_TOPIC || 'workflow1,domain_response',
+            brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
+            consumer_config:{
+                groupId: process.env.CONSUMER_GROUP || 'workflow105',
+            }
+        }),
+        // Logic
         queueChecker: ({ redis }) => (send, onEvent) => {
             // Bug: by the time this service is invoked,
             // the redis instace is still undefined,
@@ -139,12 +163,15 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     const task = await redis.get(`task-${task_id}`)
                     const parsed_task = JSON.parse(task)
 
+                    console.log('@@@@@@2',parsed_task)
+
                     send({
                         type: 'SEND_TO_CLIENT',
                         payload: {
                             ...parsed_task,
-                            type: 'TASK',
-                            client_id: worker_id
+                            // type: 'TASK',
+                            client_id: worker_id,
+                            task_id
                         }
                     })
 
@@ -161,6 +188,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         //     return true
         // }
         isTaskAcknowledge: (_, { payload }: any) => payload.success,
+        isWorkflowTopic: (_, { message_props }) => message_props.topic === "workflow1",
     },
     activities: {},
     delays: {}

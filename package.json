@@ -17,6 +17,7 @@
     "async-redis": "^1.1.7",
     "grpc": "^1.24.4",
     "uuid": "^8.3.1",
-    "xstate": "^4.14.0"
+    "xstate": "^4.14.0",
+    "xkafka": "git+http://gitlab.dnamicro.net/xstate-machines/kafka.git"
   }
 }

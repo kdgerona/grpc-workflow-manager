@@ -4,6 +4,7 @@ import { IManagerContext, IManagerSchema, IManagerEvents } from './interfaces'
 const context: IManagerContext = {
     clients: {},
     redis: undefined,
+    // workers: {}
 }
 
 const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
@@ -21,6 +22,11 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     id: 'redis-client',
                     src: 'initRedisClient'
                 },
+                // Kafka
+                {
+                    id: 'kafka-consumer',
+                    src: 'startKafkaConsumer'
+                },
                 // {
                 //     id: 'start-scheduler',
                 //     src: 'startScheduler'
@@ -35,12 +41,27 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 }
             ],
             on: {
+                // Kafka
                 KAFKA_CONSUMER_CONNECTED: {
-                    actions: ['startGrpcServer']
+                    // actions: ['startGrpcServer']
+                    actions: (_:any, event) => console.log('##%%%%% START',)
                 },
-                RECEIVED_MESSAGE_KAFKA: {
-                    actions: ['sendTaskToScheduler']
-                },
+                // RECEIVED_MESSAGE_KAFKA: {
+                //     actions: ['sendTaskToScheduler']
+                //     // actions: (_:any, event) => console.log('##%%%%%', event)
+                // },
+                RECEIVED_MESSAGE_KAFKA: [
+                    {
+                        actions: ['sendTaskToScheduler'],
+                        cond: 'isWorkflowTopic'
+                    },
+                    {
+                        actions: () => console.log('### FROM DOMAIN RES'),
+                    }
+                ],
+                // CONSUMED_FROM_DOMAIN_RES: {
+                //     actions: ['sendDomainResponse']
+                // },
                 REDIS_CLIENT_READY: {
                     actions: [
                         // 'sendRedisConnectionToScheduler',
@@ -90,8 +111,11 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         actions: ['requeueTask']
                     }
                 ],
+                PRODUCE_MESSAGE_TO_DOMAIN: {},
                 WORK_PROGRESS: {},
-                TASK_DONE: {},
+                TASK_DONE: {
+                    actions: ['produceResultToSession']
+                },
                 // Logic queue checking
                 CHECK_QUEUES: {
                     actions: ['checkQueues']

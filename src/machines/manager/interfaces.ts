@@ -28,4 +28,5 @@ export interface IManagerEvents {
         | 'TASK_DONE'
         | 'CHECK_QUEUES'
         | 'PRESENT_TASK'
+        | 'PRODUCE_MESSAGE_TO_DOMAIN'
 }
