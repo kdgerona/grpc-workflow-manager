@@ -27,5 +27,5 @@ export interface IManagerEvents {
         | 'WORK_PROGRESS'
         | 'TASK_DONE'
         | 'CHECK_QUEUES'
-        | 'TEST'
+        | 'PRESENT_TASK'
 }

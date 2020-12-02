@@ -5,20 +5,29 @@ const managerService = interpret(Manager)
 
 managerService.start()
 
-// setInterval(() => {
+setInterval(() => {
+    managerService.send({
+        type: 'RECEIVED_MESSAGE_KAFKA',
+        payload: {
+            action: 'CREATE_USER_AND_SEND_EMAIL',
+            payload: {
+                first_name: 'Test',
+                last_name: 'Testing',
+                message: 'Hi! Sample!'
+            }
+        }
+    })
+}, 3000)
+
 //     managerService.send({
-//         type: 'RECEIVED_MESSAGE_KAFKA',
+//         type: 'READY',
+//         client_id: '1',
 //         payload: {
-//             action: 'CREATE_USER_AND_SEND_EMAIL',
-//             payload: {
-//                 first_name: 'Test',
-//                 last_name: 'Testing',
-//                 message: 'Hi! Sample!'
-//             }
+//             client_id: '1',
+//             type: 'CREATE_USER_AND_SEND_EMAIL'
 //         }
 //     })
-// }, 3000)
 
-setInterval(() => {
-    managerService.send('TEST')
-}, 3000)
+// setInterval(() => {
+//     managerService.send('CHECK_QUEUES')
+// }, 3000)

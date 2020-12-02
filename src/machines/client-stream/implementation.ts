@@ -26,9 +26,9 @@ const implementation = {
             stream.on('data', (payload: any) => {
                 // send(data)
 
-                console.log(payload)
+                console.log('^^^', payload)
 
-                sendParent({
+                send({
                     type: 'SEND_EVENT_TO_PARENT',
                     payload
                 })

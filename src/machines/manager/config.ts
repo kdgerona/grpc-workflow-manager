@@ -35,11 +35,6 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 }
             ],
             on: {
-                // TEST
-                TEST: {
-                    actions: send('', { to: 'queue-checker'})
-                },
-                // END
                 KAFKA_CONSUMER_CONNECTED: {
                     actions: ['startGrpcServer']
                 },
@@ -70,25 +65,41 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 },
                 // Scheduler
                 ENQUEUE_TASK: {
-                    actions: ['pushToTaskQueueRedis']
+                    actions: [
+                        'logTaskReceived',
+                        'pushToTaskQueueRedis',
+                        'checkQueues' // No need to use an event to trigger
+                    ]
                 },
                 // Tracker
                 READY: {
-                    actions: ['pushToWorkerQueue']
+                    actions: [
+                        'logReadyWorker',
+                        'pushToWorkerQueue',
+                        'checkQueues'  // No need to use an event to trigger
+                    ]
                 },
-                TASK_ACK: {},
+                TASK_ACK: [
+                    {
+                        actions: [
+                            'setActiveTask'
+                        ],
+                        cond: 'isTaskAcknowledge'
+                    },
+                    {
+                        actions: ['requeueTask']
+                    }
+                ],
                 WORK_PROGRESS: {},
                 TASK_DONE: {},
-                // Logic Promised Guarded Event
-                // CHECK_QUEUES: [
-                //     {
-                //         actions: [],
-                //         cond: 'hasAvailableTaskandWorker'
-                //     },
-                //     {
-                //         actions: []
-                //     }
-                // ]
+                // Logic queue checking
+                CHECK_QUEUES: {
+                    actions: ['checkQueues']
+                },
+                // *** Commented for now ***
+                // PRESENT_TASK: {
+                //     actions: ['presentTaskToWorker']
+                // }
             }
         }
     }

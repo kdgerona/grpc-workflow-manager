@@ -1,6 +1,7 @@
-import { MachineOptions, send, assign, spawn } from 'xstate'
+import { MachineOptions, send, assign, spawn, actions } from 'xstate'
 import { v4 as uuidv4 } from 'uuid'
 import { IManagerContext } from './interfaces'
+const { log } = actions
 
 // Machines
 import GrpcServer from '../grpc-server'
@@ -47,7 +48,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             try{
                 const { client_id } = event.payload
 
-                const set_worker = await redis.set(`worker-${client_id}`)
+                const set_worker = await redis.set(`worker-${client_id}`, JSON.stringify(event.payload))
 
                 console.log('setWorker', set_worker)
             }catch(e){
@@ -68,6 +69,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }
         }),
         // Scheduler
+        logTaskReceived: log('A new task received'),
         pushToTaskQueueRedis: async ({ redis }: any, { payload }: any) => {
             try {
                 const task_id = uuidv4()
@@ -79,11 +81,12 @@ const implementation: MachineOptions<IManagerContext, any> = {
 
                 const queue_task = await redis.rpush('task_queue', task_id) // Redis array index is the returned value
 
-                console.log(`@@@@@I am here ${task_id}`, queue_task, set_task)
+                console.log(`!!! Task queue ${task_id}`, queue_task, set_task)
             }catch(e) {
                 console.log('!!!!!', e)
             }
         },
+        logReadyWorker: log((_: any, { client_id }: any) => `*** Worker ${client_id} is ready`),
         pushToWorkerQueue: async ({ redis }, { client_id }) => {
             try {
                 const queue_worker = await redis.rpush('worker_queue', client_id)
@@ -92,7 +95,24 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }catch(e){
                 console.log('@@@', e)
             }
-        }
+        },
+        // Logic queue checking
+        checkQueues: send(({ redis }) => ({
+            type: 'QUEUE_CHECKER',
+            payload: {
+                redis
+            }
+        }), { to: 'queue-checker'}),
+        // *** Commented for now ***
+        // presentTaskToWorker: send(async ({ redis }) => {
+        //     // const task = await redis.lpop('task_queue')
+        //     // const worker = await redis.lpop('worker_queue')
+
+        //     return {
+        //         type: 'SEND_TO_CLIENT'
+        //     }
+        // })
+        setActiveTask: () => {}
     },
     services: {
         initGrpcServer: GrpcServer,
@@ -103,11 +123,34 @@ const implementation: MachineOptions<IManagerContext, any> = {
             // the redis instace is still undefined,
             // Since the it does not get the latest context,
             // need to always pass the redis instance on event
-            const checkQueue = async () => {
+            const checkQueue = async (event: any) => {
+                const { redis } = event.payload
+
                 const task_queue = await redis.lrange('task_queue', 0, -1)
                 const worker_queue = await redis.lrange('worker_queue', 0, -1)
 
-                console.log('@@@@@@',task_queue, worker_queue)
+                // if(!task_queue.length && !worker_queue.length) return
+                if(task_queue.length && worker_queue.length) {
+                    console.log('*** QUEUES ***',task_queue,worker_queue)
+                    // Present Task, still to be acknowledge
+                    const task_id = await redis.lpop('task_queue')
+                    const worker_id = await redis.lpop('worker_queue')
+
+                    const task = await redis.get(`task-${task_id}`)
+                    const parsed_task = JSON.parse(task)
+
+                    send({
+                        type: 'SEND_TO_CLIENT',
+                        payload: {
+                            ...parsed_task,
+                            type: 'TASK',
+                            client_id: worker_id
+                        }
+                    })
+
+                    // console.log('@@@@@@',task_id, worker_id)
+                    // console.log('@@@@@@2',parsed_task)
+                }   
             }
 
             onEvent(checkQueue)
@@ -117,6 +160,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         // hasAvailableTaskandWorker: async ({ redis }) => {
         //     return true
         // }
+        isTaskAcknowledge: (_, { payload }: any) => payload.success,
     },
     activities: {},
     delays: {}
