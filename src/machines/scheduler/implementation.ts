@@ -9,16 +9,16 @@ const implementation = {
             redis: (_: any, { payload }: any) => payload
         }),
         logSchedulerListening: log('*** Scheduler is listening for queues ***'),
-        pushToTaskQueueRedis: async ({ redis }: any, { payload }: any) => {
-            const task_id = uuidv4()
+        // pushToTaskQueueRedis: async ({ redis }: any, { payload }: any) => {
+        //     const task_id = uuidv4()
 
-            const queued_task = await redis.lpush('task_queue', JSON.stringify({
-                ...payload,
-                task_id
-            })) // Redis array index is the returned value
+        //     const queued_task = await redis.lpush('task_queue', JSON.stringify({
+        //         ...payload,
+        //         task_id
+        //     })) // Redis array index is the returned value
 
-            console.log('@@@@@I am here', queued_task)
-        }
+        //     console.log('@@@@@I am here', queued_task)
+        // }
     },
     services: {},
     guards: {},

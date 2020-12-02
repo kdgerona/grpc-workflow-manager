@@ -1,4 +1,4 @@
-import { MachineOptions, actions, assign, send, spawn } from 'xstate'
+import { MachineOptions, actions, assign, send, spawn, sendParent } from 'xstate'
 import { loadPackageDefinition, Server, ServerCredentials, ServerDuplexStream } from 'grpc'
 import { loadSync } from '@grpc/proto-loader'
 import { v4 as uuidv4 } from 'uuid'
@@ -33,11 +33,11 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
             }
         }),
         logNewClientConnected: log((_,event) => `GRPC Client Connected: ${event.payload.client_id}`),
-        sendToClient: send((_, { payload }) => ({
-            type: 'SEND_EVENT_TO_CLIENT',
-            payload
-        }), { to: (_, { payload }) => payload.client_id}),
-        logClientDisconnected: log((_, event) => `GRPC Client Disconnected: ${event.payload.client_id}`),
+        // sendToClient: send((_, { payload }) => ({
+        //     type: 'SEND_EVENT_TO_CLIENT',
+        //     payload
+        // }), { to: (_, { payload }) => payload.client_id}),
+        // logClientDisconnected: log((_, event) => `GRPC Client Disconnected: ${event.payload.client_id}`),
         removeDisconnectedClient: assign({
             clients: (context, event) => {
                 const { client_id } = event.payload
@@ -50,14 +50,16 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
                 }
             }
         }),
-        logStreamError: log((_, event) => `Stream Error: ${JSON.stringify(event.payload.error, null, 4)}`),
+        // logStreamError: log((_, event) => `Stream Error: ${JSON.stringify(event.payload.error, null, 4)}`),
         incrementRetryCount: assign({
             retry_count: (context) => context.retry_count + 1
         }),
         resetRetryCount: assign<IGrpcServerContext>({
             retry_count: 0
         }),
-        logServerStartError: log(`*** GRPC Server Start Error ***`)
+        logServerStartError: log(`*** GRPC Server Start Error ***`),
+        sendParentClientStream: sendParent((_, event) => event),
+        sendParentToClient: sendParent((_, event) => event),
     },
     services: {
         initializeServer: (context) => async () => {

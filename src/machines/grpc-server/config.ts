@@ -53,23 +53,23 @@ const config: MachineConfig<IGrpcServerContext,IGrpcServerSchema,IGrpcServerEven
                 NEW_CONNECTION: {
                     actions: [
                         'logNewClientConnected',
-                        'spawnClientStream'
+                        'sendParentClientStream'
                     ]
                 },
                 SEND_TO_CLIENT: {
-                    actions: ['sendToClient']
+                    actions: ['sendParentToClient']
                 },
-                CONNECTION_CLOSED: {
-                    actions: [
-                        'logClientDisconnected',
-                        'removeDisconnectedClient'
-                    ]
-                },
-                STREAM_ERROR: {
-                    actions: [
-                        'logStreamError'
-                    ]
-                }
+                // CONNECTION_CLOSED: {
+                //     actions: [
+                //         'logClientDisconnected',
+                //         'removeDisconnectedClient'
+                //     ]
+                // },
+                // STREAM_ERROR: {
+                //     actions: [
+                //         'logStreamError'
+                //     ]
+                // }
             }
         },
         retry: {
