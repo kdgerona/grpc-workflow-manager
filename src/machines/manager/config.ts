@@ -36,6 +36,9 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         'sendRedisConnectionToScheduler',
                         // 'sendRedisConnectionToTracker',
                     ]
+                },
+                RECEIVED_MESSAGE_KAFKA: {
+                    actions: ['sendTaskToScheduler']
                 }
             }
         }

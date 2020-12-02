@@ -52,7 +52,6 @@ const config: MachineConfig<IGrpcServerContext,IGrpcServerSchema,IGrpcServerEven
             on: {
                 NEW_CONNECTION: {
                     actions: [
-                        // 'assignClientConnection',
                         'logNewClientConnected',
                         'spawnClientStream'
                     ]
@@ -63,7 +62,7 @@ const config: MachineConfig<IGrpcServerContext,IGrpcServerSchema,IGrpcServerEven
                 CONNECTION_CLOSED: {
                     actions: [
                         'logClientDisconnected',
-                        // 'removeDisconnectedClient'
+                        'removeDisconnectedClient'
                     ]
                 },
                 STREAM_ERROR: {

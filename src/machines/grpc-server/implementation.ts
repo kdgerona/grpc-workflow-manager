@@ -19,16 +19,6 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
         assignGrpcServerInstance: assign({
             grpc_server: (_, { data }) => data
         }),
-        assignClientConnection: assign({
-            clients: (context, event) => {
-                const {client_id, stream} = event.payload
-
-                return {
-                    ...context.clients,
-                    [client_id]: stream
-                }
-            }
-        }),
         spawnClientStream: assign({
             clients: (context, event) => {
                 const {client_id, stream} = event.payload
@@ -43,12 +33,6 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
             }
         }),
         logNewClientConnected: log((_,event) => `GRPC Client Connected: ${event.payload.client_id}`),
-        // sendToClient: (context, { payload }) => {
-        //     const { client_id } = payload
-        //     const { clients } = context
-
-        //     clients[client_id].write(payload)
-        // },
         sendToClient: send((_, { payload }) => ({
             type: 'SEND_EVENT_TO_CLIENT',
             payload
