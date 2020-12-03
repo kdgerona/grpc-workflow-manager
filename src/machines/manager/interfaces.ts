@@ -30,7 +30,7 @@ export interface IManagerEvents {
         | 'READY'
         | 'TASK_ACK'
         | 'WORK_PROGRESS'
-        | 'TASK_DONE'
+        | 'TASK_COMPLETE'
         | 'CHECK_QUEUES'
         | 'PRESENT_TASK'
         | 'PRODUCE_MESSAGE_TO_DOMAIN'

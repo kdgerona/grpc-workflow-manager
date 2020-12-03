@@ -114,8 +114,9 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 WORK_PROGRESS: {
                     actions: ['updateTaskData']
                 },
-                TASK_DONE: {
+                TASK_COMPLETE: {
                     actions: [
+                        'logCompletedTask',
                         'produceResultToSession',
                         'deleteTaskToActive',
                         'pushWorkerToQueue',

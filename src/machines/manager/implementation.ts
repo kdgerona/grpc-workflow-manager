@@ -20,7 +20,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         sendDomainResponse: send((_, { payload }) => {
             const { client_id, task_id, response} = payload
             const { type, ...response_data } = response
- 
+            
             return {
                 type: 'SEND_TO_CLIENT',
                 payload: {
@@ -31,16 +31,23 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 }
             }
         }, { to: (_, { payload }) => {
-            const { workflow_task_id } = payload.response
+            const { client_id } = payload
 
-            return workflow_task_id
+            return client_id
         }}),
-        getWorker: send(({ redis }, { payload }) => ({
+        // getWorker: send(({ redis }, { payload }) => ({
+        //     type: 'GET_WORKER',
+        //     payload: {
+        //         response: payload
+        //     }
+        // }), { to: 'get-worker'}),
+        getWorker: send(({ redis }, { payload }) => {
+            return {
             type: 'GET_WORKER',
             payload: {
-                response: payload.response
+                response: payload
             }
-        }), { to: 'get-worker'}),
+        }}, { to: 'get-worker'}),
         sendTaskToScheduler: send((_, { payload }) => ({
             type: 'ENQUEUE_TASK',
             payload
@@ -131,13 +138,13 @@ const implementation: MachineOptions<IManagerContext, any> = {
         },
         produceResultToSession: send((_, event) => {
             const { payload } = event
-
+            
             return {
                 type: 'SEND_MESSAGE',
                 payload: {
-                    topic: 'SESSION',
+                    topic: 'WORKFLOW_RESPONSE',
                     messages: [
-                        {value: JSON.stringify(payload)}
+                        {value: payload}
                     ]
                 }
             }
@@ -167,7 +174,8 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 ...payload,
                 task_id
             }))
-        }
+        },
+        logCompletedTask: log((_, event) => `COMPLETED: ${JSON.stringify(event, null, 4)}`),
     },
     services: {
         initGrpcServer: GrpcServer,
@@ -178,10 +186,10 @@ const implementation: MachineOptions<IManagerContext, any> = {
             brokers: process.env.KAFKA_BROKERS || 'localhost',
         }),
         startKafkaConsumer: Consumer({
-            topics: process.env.CONSUMER_TOPIC || 'workflow1,domain_response',
+            topics: process.env.CONSUMER_TOPIC || 'WORKFLOW,DOMAIN_RESPONSE',
             brokers: process.env.KAFKA_BROKERS || 'localhost',
             consumer_config:{
-                groupId: process.env.CONSUMER_GROUP || 'workflow106',
+                groupId: process.env.CONSUMER_GROUP || 'workflow',
             }
         }),
         pushToTaskQueueRedis: ({ redis }) => (send, onEvent) => {
@@ -208,6 +216,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         getWorkerId: ({ redis }) => (send, onEvent) => {
             const get_id = async (event) => {
                 const { response } = event.payload
+
                 const { workflow_task_id } = response
 
                 const client_id = await redis.get(`active-${workflow_task_id}`)
@@ -266,7 +275,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
 
             return parsed_payload.success
         },
-        isWorkflowTopic: (_, { message_props }) => message_props.topic === "workflow1",
+        isWorkflowTopic: (_, { message_props }) => message_props.topic === "WORKFLOW",
     },
     activities: {},
     delays: {}
