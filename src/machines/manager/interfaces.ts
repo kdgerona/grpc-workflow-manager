@@ -36,4 +36,5 @@ export interface IManagerEvents {
         | 'SHIFT_WORKER'
         | 'PUSH_WORKER'
         | 'CONSUMER_KAFKA_READY'
+        | 'SEND_DOMAIN_RESPONSE'
 }

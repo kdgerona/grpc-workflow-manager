@@ -35,6 +35,14 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 {
                     id: 'queue-checker',
                     src: 'queueChecker'
+                },
+                {
+                    id: 'queue-task',
+                    src: 'pushToTaskQueueRedis'
+                },
+                {
+                    id: 'get-worker',
+                    src: 'getWorkerId'
                 }
             ],
             on: {
@@ -52,9 +60,12 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         cond: 'isWorkflowTopic' // WORKFLOW topic
                     },
                     {
-                        actions: ['sendDomainResponse'] // DOMAIN_RESPONSE
+                        actions: ['getWorker']
                     }
                 ],
+                SEND_DOMAIN_RESPONSE: {
+                    actions: ['sendDomainResponse'] // DOMAIN_RESPONSE
+                },
                 REDIS_CLIENT_READY: {
                     actions: [
                         // 'sendRedisConnectionToScheduler',
@@ -84,8 +95,8 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 ENQUEUE_TASK: {
                     actions: [
                         'logTaskReceived',
-                        'pushToTaskQueueRedis',
-                        'checkQueues' // No need to use an event to trigger
+                        'pushTaskQueue',
+                        // 'checkQueues' // No need to use an event to trigger
                     ]
                 },
                 // Tracker
@@ -101,14 +112,16 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         actions: [
                             'setActiveTask'
                         ],
+                        // actions: (_, event) => console.log(`HI!!!`, event),
                         cond: 'isTaskAcknowledge'
                     },
                     {
                         actions: ['requeueTask']
+                        // actions: (_, event) => console.log(`HELLO!!!`, event)
                     }
                 ],
                 PRODUCE_MESSAGE_TO_DOMAIN: {
-                    // actions: (_, event) => console.log(event)
+                    // actions: (_, event) => console.log('LOVE!!!!!', event)
                     actions: ['produceToDomain']
                 },
                 WORK_PROGRESS: {
