@@ -7,9 +7,7 @@ const { log } = actions
 // Machines
 import GrpcServer from '../grpc-server'
 import RedisClient from '../redis'
-import Scheduler from '../scheduler'
 import ClientStream from '../client-stream'
-import redis from '../redis'
 
 const implementation: MachineOptions<IManagerContext, any> = {
     actions: {
@@ -27,6 +25,21 @@ const implementation: MachineOptions<IManagerContext, any> = {
         //     payload
         // }), { to: 'start-tracker'})
         // Kafka Consumed
+        sendDomainResponse: send((_: any, { payload }) => {
+            const { type, ...response } = payload.response
+ 
+            return {
+                type: 'SEND_TO_CLIENT',
+                payload: {
+                    type, // TASK_DONE
+                    payload: response
+                }
+            }
+        }, { to: (_, { payload }) => {
+            const { workflow_task_id } = payload.response
+
+            return workflow_task_id
+        }}),
         sendTaskToScheduler: send((_, { payload }) => ({
             type: 'ENQUEUE_TASK',
             payload
@@ -160,24 +173,55 @@ const implementation: MachineOptions<IManagerContext, any> = {
         //         type: 'SEND_TO_CLIENT'
         //     }
         // })
-        setActiveTask: async ({ redis }, { client_id, payload}) => {
-            const active_task = await redis.set(`active-${payload.task_id}`, client_id)
+        setActiveTask: async ({ redis }, { client_id, task_id}) => {
+            const active_task = await redis.set(`active-${task_id}`, client_id)
         },
-        requeueTask: async ({ redis }, { payload }) => {
-            const requeue_task = await redis.rpush('task_queue', payload.task_id)
+        requeueTask: async ({ redis }, { task_id }) => {
+            const requeue_task = await redis.rpush('task_queue', task_id)
         },
-        produceResultToSession: (_, event) => {
-            console.log('Done', event)
+        deleteTaskToActive: async ({ redis }, { task_id }) => {
+            const delete_task = await redis.del(`active-${task_id}`)
+        },
+        produceResultToSession: send((_, event: any) => {
+            const { payload } = event
+
+            return {
+                type: 'SEND_MESSAGE',
+                payload: {
+                    topic: 'SESSION',
+                    messages: [
+                        {value: JSON.stringify(payload)}
+                    ]
+                }
+            }
+        }, {to: 'kafka-producer'}),
+        produceToDomain: send((_, event: any) => {
+            const { topic , payload } = event
+
+            return {
+                type: 'SEND_MESSAGE',
+                payload: {
+                    topic,
+                    messages: [
+                        {value: JSON.stringify(payload)}
+                    ]
+                }
+            }
+        }, {to: 'kafka-producer'}),
+        updateTaskData: async ({ redis }, { task_id, payload }) => {
+            const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                ...payload,
+                task_id
+            }))
         }
     },
     services: {
         initGrpcServer: GrpcServer,
         initRedisClient: RedisClient,
-        startScheduler: Scheduler,
         // Kafka
         startKafkaProducer: Producer({ 
             topic: process.env.PRODUCER_TOPIC || '',
-            brokers: process.env.KAFKA_BROKERS || '',
+            brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
         }),
         startKafkaConsumer: Consumer({
             topics: process.env.CONSUMER_TOPIC || 'workflow1,domain_response',
@@ -209,13 +253,6 @@ const implementation: MachineOptions<IManagerContext, any> = {
 
                     const task = await redis.get(`task-${task_id}`)
                     const parsed_task = JSON.parse(task)
-
-                    console.log('@@@@@@2',{
-                        ...parsed_task,
-                        // type: 'TASK',
-                        client_id: worker_id,
-                        task_id
-                    })
 
                     send({
                         type: 'SEND_TO_CLIENT',

@@ -14,8 +14,7 @@ const context: IGrpcServerContext = {
 
 const config: MachineConfig<IGrpcServerContext,IGrpcServerSchema,IGrpcServerEvents> = {
     id: 'grpc-server',
-    // initial: 'idle',
-    initial: 'initialize',
+    initial: 'idle',
     context,
     states: {
         idle: {

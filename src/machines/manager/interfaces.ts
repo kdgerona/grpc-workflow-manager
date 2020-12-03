@@ -9,9 +9,6 @@ export interface IManagerContext {
     worker_data: {
         [key: string]: any
     }
-    active_task: {
-        [key: string]: any
-    }
 }
 
 export interface IManagerSchema {
@@ -38,4 +35,5 @@ export interface IManagerEvents {
         | 'PRODUCE_MESSAGE_TO_DOMAIN'
         | 'SHIFT_WORKER'
         | 'PUSH_WORKER'
+        | 'CONSUMER_KAFKA_READY'
 }

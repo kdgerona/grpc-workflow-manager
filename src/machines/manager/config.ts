@@ -6,7 +6,6 @@ const context: IManagerContext = {
     redis: undefined,
     worker_queue: [],
     worker_data: {},
-    active_task: {}
 }
 
 const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
@@ -29,14 +28,10 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     id: 'kafka-consumer',
                     src: 'startKafkaConsumer'
                 },
-                // {
-                //     id: 'start-scheduler',
-                //     src: 'startScheduler'
-                // },
-                // {
-                //     id: 'start-tracker',
-                //     src: 'startTracker'
-                // },
+                {
+                    id: 'kafka-producer',
+                    src: 'startKafkaProducer'
+                },
                 {
                     id: 'queue-checker',
                     src: 'queueChecker'
@@ -44,26 +39,22 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
             ],
             on: {
                 // Kafka
-                KAFKA_CONSUMER_CONNECTED: {
-                    // actions: ['startGrpcServer']
-                    actions: (_:any, event) => console.log('##%%%%% START',)
+                CONSUMER_KAFKA_READY: {
+                    actions: ['startGrpcServer']
                 },
-                RECEIVED_MESSAGE_KAFKA: {
-                    actions: ['sendTaskToScheduler']
-                    // actions: (_:any, event) => console.log('##%%%%%', event)
-                },
-                // RECEIVED_MESSAGE_KAFKA: [
-                //     {
-                //         actions: ['sendTaskToScheduler'],
-                //         cond: 'isWorkflowTopic'
-                //     },
-                //     {
-                //         actions: () => console.log('### FROM DOMAIN RES'),
-                //     }
-                // ],
-                // CONSUMED_FROM_DOMAIN_RES: {
-                //     actions: ['sendDomainResponse']
+                // RECEIVED_MESSAGE_KAFKA: {
+                //     actions: ['sendTaskToScheduler']
+                //     // actions: (_:any, event) => console.log('##%%%%%', event)
                 // },
+                RECEIVED_MESSAGE_KAFKA: [
+                    {
+                        actions: ['sendTaskToScheduler'],
+                        cond: 'isWorkflowTopic' // WORKFLOW topic
+                    },
+                    {
+                        actions: ['sendDomainResponse'] // DOMAIN_RESPONSE
+                    }
+                ],
                 REDIS_CLIENT_READY: {
                     actions: [
                         // 'sendRedisConnectionToScheduler',
@@ -116,11 +107,17 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         actions: ['requeueTask']
                     }
                 ],
-                PRODUCE_MESSAGE_TO_DOMAIN: {},
-                WORK_PROGRESS: {},
+                PRODUCE_MESSAGE_TO_DOMAIN: {
+                    // actions: (_, event) => console.log(event)
+                    actions: ['produceToDomain']
+                },
+                WORK_PROGRESS: {
+                    actions: ['updateTaskData']
+                },
                 TASK_DONE: {
                     actions: [
-                        // 'produceResultToSession',
+                        'produceResultToSession',
+                        'deleteTaskToActive',
                         'pushWorkerToQueue',
                         'checkQueues'
                     ]
