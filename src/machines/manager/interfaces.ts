@@ -5,6 +5,13 @@ export interface IManagerContext {
         [key: string]: Actor
     }
     redis: any
+    worker_queue: string[]
+    worker_data: {
+        [key: string]: any
+    }
+    active_task: {
+        [key: string]: any
+    }
 }
 
 export interface IManagerSchema {
@@ -29,4 +36,6 @@ export interface IManagerEvents {
         | 'CHECK_QUEUES'
         | 'PRESENT_TASK'
         | 'PRODUCE_MESSAGE_TO_DOMAIN'
+        | 'SHIFT_WORKER'
+        | 'PUSH_WORKER'
 }

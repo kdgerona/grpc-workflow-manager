@@ -8,5 +8,6 @@ service Connection {
 message MessageEvent {
     required string type = 1;
     required string client_id = 2;
-    required string payload = 3; // { action: 'SOMETHING_WORKFLOW_ACTION' }
+    required string task_id = 3;
+    required string payload = 4; // { action: 'SOMETHING_WORKFLOW_ACTION' }
 }

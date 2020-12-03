@@ -5,7 +5,13 @@ const implementation = {
     actions: {
         logClientListening: log(({ client_id }: any) => `*** Client ${client_id} is listening ***`),
         sendEventToClient: ({ stream }: any, { payload }: any) => {
-            stream.write(payload)
+            const data = {
+                ...payload,
+                payload: JSON.stringify(payload.payload)
+            }
+             
+            console.log('@@@@@', data)
+            stream.write(data)
         },
         sendEventToParent: sendParent((_, event: any) => event.payload),
         logClientDisconnected: log((_, event: any) => `GRPC Client Disconnected: ${event.payload.client_id}`),

@@ -45,28 +45,72 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 }
             }
         }),
-        setWorker: async ({ redis }, event) =>  {
-            try{
-                const { client_id } = event.payload
+        // setWorker: async ({ redis }, event) =>  {
+        //     try{
+        //         const { client_id } = event.payload
 
-                const set_worker = await redis.set(`worker-${client_id}`, JSON.stringify(event.payload))
+        //         const set_worker = await redis.set(`worker-${client_id}`, JSON.stringify(event.payload))
 
-                console.log('setWorker', set_worker)
-            }catch(e){
-                console.log('@@ set worker err', e)
-            }
-        },
-        sendToClient: send((_, event) => event, { to: (_, { payload }) => payload.client_id}),
-        removeDisconnectedClient: assign({
-            clients: (context, event) => {
-                const { client_id } = event.payload
-                const { [client_id]: client_stream, ...new_clients } = context.clients
+        //         console.log('setWorker', set_worker)
+        //     }catch(e){
+        //         console.log('@@ set worker err', e)
+        //     }
+        // },
+        assignWorkerToQueue: assign(({ worker_queue }, event) => {
+            const { client_id, } = event.payload
 
-                // client_stream.stop()
-
-                return {
-                    ...new_clients
+            return {
+                worker_queue: [...worker_queue, client_id],
+                worker_data: {
+                    [client_id]: event.payload
                 }
+            }
+        }),
+        sendToClient: send((_, event) => event, { to: (_, { payload }) => payload.client_id}),
+        shiftWorkerFromList: assign<IManagerContext,any>({
+            worker_queue: ({ worker_queue }: any) => {
+                const [shifted_worker, ...new_worker_queue] = worker_queue
+
+                return [...new_worker_queue]
+            }
+        }),
+        pushWorkerToQueue: assign({
+            worker_queue: ({ worker_queue }: any, { client_id }) => [...worker_queue, client_id]
+        }),
+        // removeDisconnectedClient: assign({
+        //     clients: (context, event) => {
+        //         const { client_id } = event.payload
+        //         const { [client_id]: client_stream, ...new_clients } = context.clients
+
+        //         // client_stream.stop()
+
+        //         return {
+        //             ...new_clients
+        //         }
+        //     }
+        // }),
+        removeDisconnectedClient: assign((context, event) => {
+            const { clients, worker_data, worker_queue } = context
+            const { client_id } = event.payload
+            // Client/Worker References
+            const { [client_id]: client_stream, ...new_clients } = clients
+
+            // client_stream.stop()
+
+            // Worker data
+            const { [client_id]: worker, ...new_worker_data } = worker_data
+
+            // Worker Queue
+            const new_worker_queue = worker_queue.filter(worker_id => worker_id !== client_id)
+
+            return {
+                clients: {
+                    ...new_clients
+                },
+                worker_data: {
+                    ...new_worker_data
+                },
+                worker_queue: new_worker_queue
             }
         }),
         // Scheduler
@@ -88,22 +132,23 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }
         },
         logReadyWorker: log((_: any, { client_id }: any) => `*** Worker ${client_id} is ready ***`),
-        pushToWorkerQueue: async ({ redis }, { client_id }) => {
-            try {
-                if(!client_id) return
+        // pushToWorkerQueue: async ({ redis }, { client_id }) => {
+        //     try {
+        //         if(!client_id) return
                 
-                const queue_worker = await redis.rpush('worker_queue', client_id)
+        //         const queue_worker = await redis.rpush('worker_queue', client_id)
 
-                console.log(`!!! Worker queue`, queue_worker)
-            }catch(e){
-                console.log('@@@', e)
-            }
-        },
+        //         console.log(`!!! Worker queue`, queue_worker)
+        //     }catch(e){
+        //         console.log('@@@', e)
+        //     }
+        // },
         // Logic queue checking
-        checkQueues: send(({ redis }) => ({
+        checkQueues: send(({ redis, worker_queue }) => ({
             type: 'QUEUE_CHECKER',
             payload: {
-                redis
+                redis,
+                worker_queue
             }
         }), { to: 'queue-checker'}),
         // *** Commented for now ***
@@ -148,22 +193,29 @@ const implementation: MachineOptions<IManagerContext, any> = {
             // Since the it does not get the latest context,
             // need to always pass the redis instance on event
             const checkQueue = async (event: any) => {
-                const { redis } = event.payload
+                const { redis, worker_queue } = event.payload
 
                 const task_queue = await redis.lrange('task_queue', 0, -1)
-                const worker_queue = await redis.lrange('worker_queue', 0, -1)
+                // const worker_queue = await redis.lrange('worker_queue', 0, -1)
 
                 // if(!task_queue.length && !worker_queue.length) return
                 if(task_queue.length && worker_queue.length) {
                     console.log('*** QUEUES ***',task_queue,worker_queue)
                     // Present Task, still to be acknowledge
                     const task_id = await redis.lpop('task_queue')
-                    const worker_id = await redis.lpop('worker_queue')
+                    // const worker_id = await redis.lpop('worker_queue')
+                    const worker_id = worker_queue[0]
+                    send('SHIFT_WORKER')
 
                     const task = await redis.get(`task-${task_id}`)
                     const parsed_task = JSON.parse(task)
 
-                    console.log('@@@@@@2',parsed_task)
+                    console.log('@@@@@@2',{
+                        ...parsed_task,
+                        // type: 'TASK',
+                        client_id: worker_id,
+                        task_id
+                    })
 
                     send({
                         type: 'SEND_TO_CLIENT',
@@ -174,6 +226,11 @@ const implementation: MachineOptions<IManagerContext, any> = {
                             task_id
                         }
                     })
+
+                    // send({
+                    //     type: 'PUSH_WORKER',
+                    //     client_id: worker_id,
+                    // })
 
                     // console.log('@@@@@@',task_id, worker_id)
                     // console.log('@@@@@@2',parsed_task)

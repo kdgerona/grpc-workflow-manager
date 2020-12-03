@@ -4,7 +4,9 @@ import { IManagerContext, IManagerSchema, IManagerEvents } from './interfaces'
 const context: IManagerContext = {
     clients: {},
     redis: undefined,
-    // workers: {}
+    worker_queue: [],
+    worker_data: {},
+    active_task: {}
 }
 
 const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
@@ -46,19 +48,19 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     // actions: ['startGrpcServer']
                     actions: (_:any, event) => console.log('##%%%%% START',)
                 },
-                // RECEIVED_MESSAGE_KAFKA: {
-                //     actions: ['sendTaskToScheduler']
-                //     // actions: (_:any, event) => console.log('##%%%%%', event)
-                // },
-                RECEIVED_MESSAGE_KAFKA: [
-                    {
-                        actions: ['sendTaskToScheduler'],
-                        cond: 'isWorkflowTopic'
-                    },
-                    {
-                        actions: () => console.log('### FROM DOMAIN RES'),
-                    }
-                ],
+                RECEIVED_MESSAGE_KAFKA: {
+                    actions: ['sendTaskToScheduler']
+                    // actions: (_:any, event) => console.log('##%%%%%', event)
+                },
+                // RECEIVED_MESSAGE_KAFKA: [
+                //     {
+                //         actions: ['sendTaskToScheduler'],
+                //         cond: 'isWorkflowTopic'
+                //     },
+                //     {
+                //         actions: () => console.log('### FROM DOMAIN RES'),
+                //     }
+                // ],
                 // CONSUMED_FROM_DOMAIN_RES: {
                 //     actions: ['sendDomainResponse']
                 // },
@@ -73,11 +75,14 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 NEW_CONNECTION: {
                     actions: [
                         'spawnClientStream',
-                        'setWorker' // TBD
+                        'assignWorkerToQueue',
+                        'checkQueues'
                     ]
                 },
                 SEND_TO_CLIENT: {
-                    actions: ['sendToClient']
+                    actions: [
+                        'sendToClient',
+                    ]
                 },
                 CONNECTION_CLOSED: {
                     actions: [
@@ -93,13 +98,13 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     ]
                 },
                 // Tracker
-                READY: {
-                    actions: [
-                        'logReadyWorker',
-                        'pushToWorkerQueue',
-                        'checkQueues'  // No need to use an event to trigger
-                    ]
-                },
+                // READY: {
+                //     actions: [
+                //         'logReadyWorker',
+                //         'pushToWorkerQueue',
+                //         'checkQueues'  // No need to use an event to trigger
+                //     ]
+                // },
                 TASK_ACK: [
                     {
                         actions: [
@@ -114,12 +119,22 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 PRODUCE_MESSAGE_TO_DOMAIN: {},
                 WORK_PROGRESS: {},
                 TASK_DONE: {
-                    actions: ['produceResultToSession']
+                    actions: [
+                        // 'produceResultToSession',
+                        'pushWorkerToQueue',
+                        'checkQueues'
+                    ]
                 },
                 // Logic queue checking
                 CHECK_QUEUES: {
                     actions: ['checkQueues']
                 },
+                SHIFT_WORKER: {
+                    actions: ['shiftWorkerFromList']
+                },
+                // PUSH_WORKER: {
+                //     actions: ['pushWorkerToQueue']
+                // }
                 // *** Commented for now ***
                 // PRESENT_TASK: {
                 //     actions: ['presentTaskToWorker']
