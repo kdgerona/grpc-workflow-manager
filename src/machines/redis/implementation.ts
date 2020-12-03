@@ -14,8 +14,11 @@ const implementation: MachineOptions<IRedisContext, IRedisEvents> = {
         logRedisClientInitialized: log('*** Redis Client Initialized ***'),
     },
     services: {
-        initializeRedis: () => (send) => {
-            const redis = asyncRedis.createClient()
+        initializeRedis: ({ redis_host, redis_port }) => (send) => {
+            const redis = asyncRedis.createClient({
+                port: +(redis_port),
+                host: redis_host
+            })
 
             redis.on('error', error => {
                 send({

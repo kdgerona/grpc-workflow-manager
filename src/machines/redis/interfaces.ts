@@ -1,4 +1,7 @@
-export interface IRedisContext {}
+export interface IRedisContext {
+    redis_host: string
+    redis_port: string | number
+}
 
 export interface IRedisSchema {
     states: {
