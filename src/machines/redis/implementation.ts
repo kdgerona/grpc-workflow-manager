@@ -1,19 +1,20 @@
-import { sendParent, actions } from 'xstate'
+import { MachineOptions, sendParent, actions } from 'xstate'
 import asyncRedis from 'async-redis'
+import { IRedisContext, IRedisEvents } from './interfaces'
 const { log } = actions
 
-const implementation = {
+const implementation: MachineOptions<IRedisContext, IRedisEvents> = {
     actions: {
-        sendToParentRedisClient: sendParent((_:any, event: any) => ({
+        sendToParentRedisClient: sendParent((_, event) => ({
             type: 'REDIS_CLIENT_READY',
             payload: event.payload
         })),
-        logConnectionError: log((_:any, event: any) => `Redis Connection Error: ${event.payload}`),
+        logConnectionError: log((_, event) => `Redis Connection Error: ${event.payload}`),
         logInitializingRedisClient: log('*** Initializing Redis Client ***'),
         logRedisClientInitialized: log('*** Redis Client Initialized ***'),
     },
     services: {
-        initializeRedis: () => (send: any) => {
+        initializeRedis: () => (send) => {
             const redis = asyncRedis.createClient()
 
             redis.on('error', error => {

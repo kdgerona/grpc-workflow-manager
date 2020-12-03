@@ -1,27 +1,25 @@
-import { actions, sendParent } from 'xstate'
+import { MachineOptions, actions, sendParent } from 'xstate'
+import {IClientStreamContext} from './interfaces'
 const { log } = actions
 
-const implementation = {
+const implementation: MachineOptions<IClientStreamContext, any> = {
     actions: {
-        logClientListening: log(({ client_id }: any) => `*** Client ${client_id} is listening ***`),
-        sendEventToClient: ({ stream }: any, { payload }: any) => {
+        logClientListening: log(({ client_id }) => `*** Client ${client_id} is listening ***`),
+        sendEventToClient: ({ stream }, { payload }) => {
             const data = {
                 ...payload,
                 payload: JSON.stringify(payload.payload)
             }
-             
-            console.log('@@@@@', data)
-            stream.write(data)
+
+            stream?.write(data)
         },
-        sendEventToParent: sendParent((_, event: any) => event.payload),
-        logClientDisconnected: log((_, event: any) => `GRPC Client Disconnected: ${event.payload.client_id}`),
-        sendParentDisconnectedClient: sendParent((_, event: any) => event),
-        logStreamError: log((_, event: any) => `Stream Error: ${JSON.stringify(event.payload.error, null, 4)}`),
+        sendEventToParent: sendParent((_, event) => event.payload),
+        logClientDisconnected: log((_, event) => `GRPC Client Disconnected: ${event.payload.client_id}`),
+        sendParentDisconnectedClient: sendParent((_, event) => event),
+        logStreamError: log((_, event) => `Stream Error: ${JSON.stringify(event.payload.error, null, 4)}`),
     },
     services: {
-        clientListeners: ({ stream, client_id }: any) => (send: any) => {
-            console.log('IM HERE!!!!')
-
+        clientListeners: ({ stream, client_id }) => (send) => {
             const connection_closed = {
                 type: 'CONNECTION_CLOSED',
                 payload: {
@@ -29,18 +27,14 @@ const implementation = {
                 }
             }
 
-            stream.on('data', (payload: any) => {
-                // send(data)
-
-                // console.log('^^^', payload)
-
+            stream!.on('data', (payload) => {
                 send({
                     type: 'SEND_EVENT_TO_PARENT',
                     payload
                 })
             })
 
-            stream.on('error', (error: any) => {
+            stream!.on('error', (error) => {
                 // Send error data
                 send({
                     type: 'STREAM_ERROR',
@@ -52,7 +46,7 @@ const implementation = {
                 send(connection_closed)
             })
 
-            stream.on('end', () => {
+            stream!.on('end', () => {
                 send(connection_closed)
             })
         }

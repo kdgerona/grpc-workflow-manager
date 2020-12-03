@@ -12,7 +12,7 @@ export interface IGrpcServerContext {
     //     [key: string]: ServerDuplexStream<IMessageEvent,IMessageEvent>
     // }
     clients: {
-        [key: string]: any
+        [key: string]: Actor
     }
 }
 

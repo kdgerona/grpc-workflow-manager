@@ -13,17 +13,26 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
     initial: 'start',
     context,
     states: {
+        idle: {
+            invoke: {
+                id: 'redis-client',
+                src: 'initRedisClient'
+            },
+            on: {
+                REDIS_CLIENT_READY: {
+                    target: 'start',
+                    actions: [
+                        'assignRedisClient'
+                    ]
+                },
+            }
+        },
         start: {
             invoke: [
                 {
                     id: 'grpc-server',
                     src: 'initGrpcServer'
                 },
-                {
-                    id: 'redis-client',
-                    src: 'initRedisClient'
-                },
-                // Kafka
                 {
                     id: 'kafka-consumer',
                     src: 'startKafkaConsumer'
@@ -50,10 +59,6 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 CONSUMER_KAFKA_READY: {
                     actions: ['startGrpcServer']
                 },
-                // RECEIVED_MESSAGE_KAFKA: {
-                //     actions: ['sendTaskToScheduler']
-                //     // actions: (_:any, event) => console.log('##%%%%%', event)
-                // },
                 RECEIVED_MESSAGE_KAFKA: [
                     {
                         actions: ['sendTaskToScheduler'],
@@ -65,13 +70,6 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 ],
                 SEND_DOMAIN_RESPONSE: {
                     actions: ['sendDomainResponse'] // DOMAIN_RESPONSE
-                },
-                REDIS_CLIENT_READY: {
-                    actions: [
-                        // 'sendRedisConnectionToScheduler',
-                        // 'sendRedisConnectionToTracker',
-                        'assignRedisClient'
-                    ]
                 },
                 // GRPC Server
                 NEW_CONNECTION: {
@@ -96,32 +94,21 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     actions: [
                         'logTaskReceived',
                         'pushTaskQueue',
-                        // 'checkQueues' // No need to use an event to trigger
                     ]
                 },
                 // Tracker
-                // READY: {
-                //     actions: [
-                //         'logReadyWorker',
-                //         'pushToWorkerQueue',
-                //         'checkQueues'  // No need to use an event to trigger
-                //     ]
-                // },
                 TASK_ACK: [
                     {
                         actions: [
                             'setActiveTask'
                         ],
-                        // actions: (_, event) => console.log(`HI!!!`, event),
                         cond: 'isTaskAcknowledge'
                     },
                     {
                         actions: ['requeueTask']
-                        // actions: (_, event) => console.log(`HELLO!!!`, event)
                     }
                 ],
                 PRODUCE_MESSAGE_TO_DOMAIN: {
-                    // actions: (_, event) => console.log('LOVE!!!!!', event)
                     actions: ['produceToDomain']
                 },
                 WORK_PROGRESS: {
@@ -135,20 +122,13 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         'checkQueues'
                     ]
                 },
-                // Logic queue checking
+                // Logic Queue Checking
                 CHECK_QUEUES: {
                     actions: ['checkQueues']
                 },
                 SHIFT_WORKER: {
                     actions: ['shiftWorkerFromList']
                 },
-                // PUSH_WORKER: {
-                //     actions: ['pushWorkerToQueue']
-                // }
-                // *** Commented for now ***
-                // PRESENT_TASK: {
-                //     actions: ['presentTaskToWorker']
-                // }
             }
         }
     }

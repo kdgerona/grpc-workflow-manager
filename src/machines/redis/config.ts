@@ -1,4 +1,7 @@
-const config = {
+import { MachineConfig } from 'xstate'
+import { IRedisContext, IRedisSchema, IRedisEvents } from './interfaces'
+
+const config: MachineConfig<IRedisContext, IRedisSchema, IRedisEvents> = {
     id: 'redis',
     initial: 'initialize',
     states: {

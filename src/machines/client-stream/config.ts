@@ -1,9 +1,12 @@
-const context = {
+import { MachineConfig } from 'xstate'
+import {IClientStreamContext, IClientStreamSchema, IClientStreamEvents} from './interfaces'
+
+const context: IClientStreamContext = {
     client_id: undefined,
     stream: undefined
 }
 
-const config = {
+const config: MachineConfig<IClientStreamContext,IClientStreamSchema,IClientStreamEvents> = {
     id: 'client-stream',
     initial: 'listening',
     context,
@@ -24,6 +27,7 @@ const config = {
                     actions: ['sendEventToClient']
                 },
                 CONNECTION_CLOSED: {
+                    target: 'error',
                     actions: [
                         'logClientDisconnected',
                         'sendParentDisconnectedClient'
@@ -35,6 +39,9 @@ const config = {
                     ]
                 }
             }
+        },
+        error: {
+            type: 'final'
         }
     }
 }

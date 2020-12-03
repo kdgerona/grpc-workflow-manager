@@ -13,7 +13,7 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
     actions: {
         logInitializingServer: log('*** GRPC Server Initializing ***'),
         logServerInitialized: log('*** GRPC Server Initialized ***'),
-        logInitializationError: log((_: any, event: any) => event.data),
+        logInitializationError: log((_, event) => event.data),
         retryingLog: log((context) => `*** Retrying GRPC Server ${context.retry_count}/${context.max_retry_count} ***`),
         logServerRunning: log('*** GRPC Server Running ***'),
         assignGrpcServerInstance: assign({
@@ -42,8 +42,6 @@ const implementation: MachineOptions<IGrpcServerContext, any> = {
             clients: (context, event) => {
                 const { client_id } = event.payload
                 const { [client_id]: client_stream, ...new_clients } = context.clients
-
-                client_stream.stop()
 
                 return {
                     ...new_clients

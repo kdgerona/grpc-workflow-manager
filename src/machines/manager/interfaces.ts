@@ -4,7 +4,7 @@ export interface IManagerContext {
     clients: {
         [key: string]: Actor
     }
-    redis: any
+    redis?: any
     worker_queue: string[]
     worker_data: {
         [key: string]: any
@@ -13,6 +13,7 @@ export interface IManagerContext {
 
 export interface IManagerSchema {
     states: {
+        idle: {}
         start: {}
     }
 }
@@ -37,4 +38,10 @@ export interface IManagerEvents {
         | 'PUSH_WORKER'
         | 'CONSUMER_KAFKA_READY'
         | 'SEND_DOMAIN_RESPONSE'
+}
+
+export interface INewTask {
+    type: "NEW_TASK"
+    workflow_task_id: string
+    payload: any
 }
