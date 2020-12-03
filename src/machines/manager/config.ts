@@ -10,7 +10,7 @@ const context: IManagerContext = {
 
 const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
     id: 'manager',
-    initial: 'start',
+    initial: 'idle',
     context,
     states: {
         idle: {
