@@ -115,9 +115,9 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 PRODUCE_MESSAGE_TO_DOMAIN: {
                     actions: ['produceToDomain']
                 },
-                WORK_PROGRESS: {
-                    actions: ['updateTaskData']
-                },
+                // WORK_PROGRESS: {
+                //     actions: ['updateTaskData']
+                // },
                 TASK_COMPLETE: {
                     actions: [
                         'logCompletedTask',

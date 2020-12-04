@@ -136,13 +136,13 @@ const implementation: MachineOptions<IManagerContext, any> = {
         },
         produceResultToSession: send((_, event) => {
             const { payload } = event
-            
+
             return {
                 type: 'SEND_MESSAGE',
                 payload: {
                     topic: 'WORKFLOW_RESPONSE',
                     messages: [
-                        {value: payload}
+                        {value: JSON.stringify(payload)}
                     ]
                 }
             }
@@ -200,9 +200,14 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     const task_id = uuidv4()
 
                     console.log(`HI!!!`, event.payload)
+
+                    const event_data = {
+                        type: 'TASK',
+                        payload: event.payload
+                    }
     
                     const set_task = await redis.set(`task-${task_id}`, JSON.stringify({
-                        ...event.payload,
+                        ...event_data,
                         task_id
                     }))
     
@@ -237,8 +242,18 @@ const implementation: MachineOptions<IManagerContext, any> = {
             onEvent(getWorker)
         },
         getTask: ({ redis }) => (send, onEvent) => {
-            const getTaskData = (event) => {
-                console.log('Getting task @@@',event)
+            const getTaskData = async (event) => {
+                const { task_id, payload } = event
+                const parsed_payload = JSON.parse(payload)
+                const get_task = JSON.parse(await redis.get(`task-${task_id}`))
+
+                send({
+                    type: 'PRODUCE_TO_SESSION',
+                    payload: {
+                        ...get_task.payload,
+                        payload: parsed_payload
+                    }
+                })
             }
 
             onEvent(getTaskData)
