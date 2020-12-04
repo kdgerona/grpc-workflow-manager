@@ -115,9 +115,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         logTaskReceived: log('A new task received'),
         pushTaskQueue: send(({ redis }, { payload }) => ({
             type: 'PUSH_TASK',
-            payload: {
-                payload
-            }
+            payload
         }), { to: 'queue-task'}),
         logReadyWorker: log((_, { client_id }) => `*** Worker ${client_id} is ready ***`),
         // Logic queue checking
@@ -149,6 +147,9 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 }
             }
         }, {to: 'kafka-producer'}),
+        // DEV
+        getTaskData: send((_, event) => event, { to: 'get-task'}),
+        // END
         produceToDomain: send((_, event) => {
             const { topic, task_id, payload } = event
             const parsed_payload = JSON.parse(payload)
@@ -183,13 +184,13 @@ const implementation: MachineOptions<IManagerContext, any> = {
         // Kafka
         startKafkaProducer: Producer({ 
             topic: process.env.PRODUCER_TOPIC || 'DEFAULT',
-            brokers: process.env.KAFKA_BROKERS || 'localhost',
+            brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
         }),
         startKafkaConsumer: Consumer({
             topics: process.env.CONSUMER_TOPIC || 'WORKFLOW,DOMAIN_RESPONSE',
-            brokers: process.env.KAFKA_BROKERS || 'localhost',
+            brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
             consumer_config:{
-                groupId: process.env.CONSUMER_GROUP || 'workflow',
+                groupId: process.env.CONSUMER_GROUP || 'workflow13',
             }
         }),
         pushToTaskQueueRedis: ({ redis }) => (send, onEvent) => {
@@ -197,9 +198,11 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 try {
                     const { payload } = event.payload
                     const task_id = uuidv4()
+
+                    console.log(`HI!!!`, event.payload)
     
                     const set_task = await redis.set(`task-${task_id}`, JSON.stringify({
-                        ...payload,
+                        ...event.payload,
                         task_id
                     }))
     
@@ -214,7 +217,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             onEvent(push_to_redis)
         },
         getWorkerId: ({ redis }) => (send, onEvent) => {
-            const get_id = async (event) => {
+            const getWorker = async (event) => {
                 const { response } = event.payload
 
                 const { workflow_task_id } = response
@@ -231,7 +234,14 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 })
             }
 
-            onEvent(get_id)
+            onEvent(getWorker)
+        },
+        getTask: ({ redis }) => (send, onEvent) => {
+            const getTaskData = (event) => {
+                console.log('Getting task @@@',event)
+            }
+
+            onEvent(getTaskData)
         },
         // Logic
         queueChecker: ({ redis }) => (send, onEvent) => {
@@ -253,7 +263,10 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     send('SHIFT_WORKER')
 
                     const task = await redis.get(`task-${task_id}`)
+                    // const { session_id, ...parsed_task} = JSON.parse(task)
                     const parsed_task = JSON.parse(task)
+
+                    console.log('Hello: @@@@@@', parsed_task)
 
                     send({
                         type: 'SEND_TO_CLIENT',

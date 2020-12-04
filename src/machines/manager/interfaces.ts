@@ -38,6 +38,7 @@ export interface IManagerEvents {
         | 'PUSH_WORKER'
         | 'CONSUMER_KAFKA_READY'
         | 'SEND_DOMAIN_RESPONSE'
+        | 'PRODUCE_TO_SESSION'
 }
 
 export interface INewTask {
