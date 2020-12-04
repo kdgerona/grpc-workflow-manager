@@ -52,6 +52,10 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 {
                     id: 'get-worker',
                     src: 'getWorkerId'
+                },
+                {
+                    id: 'get-task',
+                    src: 'getTask'
                 }
             ],
             on: {
@@ -111,18 +115,24 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 PRODUCE_MESSAGE_TO_DOMAIN: {
                     actions: ['produceToDomain']
                 },
-                WORK_PROGRESS: {
-                    actions: ['updateTaskData']
-                },
+                // WORK_PROGRESS: {
+                //     actions: ['updateTaskData']
+                // },
                 TASK_COMPLETE: {
                     actions: [
                         'logCompletedTask',
-                        'produceResultToSession',
+                        // 'produceResultToSession',
+                        'getTaskData',
                         'deleteTaskToActive',
                         'pushWorkerToQueue',
                         'checkQueues'
                     ]
                 },
+                // DEV
+                PRODUCE_TO_SESSION: {
+                    actions: ['produceResultToSession']
+                },
+                // END
                 // Logic Queue Checking
                 CHECK_QUEUES: {
                     actions: ['checkQueues']
