@@ -3,7 +3,8 @@ import {IClientStreamContext, IClientStreamSchema, IClientStreamEvents} from './
 
 const context: IClientStreamContext = {
     client_id: undefined,
-    stream: undefined
+    stream: undefined,
+    active_tasks: {}
 }
 
 const config: MachineConfig<IClientStreamContext,IClientStreamSchema,IClientStreamEvents> = {
@@ -37,6 +38,14 @@ const config: MachineConfig<IClientStreamContext,IClientStreamSchema,IClientStre
                     actions: [
                         'logStreamError'
                     ]
+                },
+                ADD_ACTIVE_TASK: {
+                    actions: [
+                        'addActiveTask'
+                    ]
+                },
+                REMOVE_ACTIVE_TASK: {
+                    actions: ['removeActiveTask']
                 }
             }
         },

@@ -61,7 +61,8 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     ...context.clients,
                     [client_id]: spawn(ClientStream.withContext({
                         client_id,
-                        stream
+                        stream,
+                        active_tasks: {}
                     }), client_id)
                 }
             }
@@ -111,6 +112,14 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 worker_queue: new_worker_queue
             }
         }),
+        requeueActiveTasks: async ({ redis }, { payload }) => {
+            const { active_tasks } = payload
+            
+            Object.keys(active_tasks).map(async (task_id) => {
+                const delete_task = await redis.del(`active-${task_id}`)
+                const requeue_task = await redis.rpush('task_queue', task_id)
+            })
+        },
         // Scheduler
         logTaskReceived: log('A new task received'),
         pushTaskQueue: send(({ redis }, { payload }) => ({
@@ -128,12 +137,20 @@ const implementation: MachineOptions<IManagerContext, any> = {
         setActiveTask: async ({ redis }, { client_id, task_id}) => {
             const active_task = await redis.set(`active-${task_id}`, client_id)
         },
+        addActiveTask: send((_, { task_id}) => ({
+            type: 'ADD_ACTIVE_TASK',
+            task_id
+        }), { to: (_, {client_id}) => client_id }),
         requeueTask: async ({ redis }, { task_id }) => {
             const requeue_task = await redis.rpush('task_queue', task_id)
         },
         deleteTaskToActive: async ({ redis }, { task_id }) => {
             const delete_task = await redis.del(`active-${task_id}`)
         },
+        removeActiveTask: send((_, { task_id}) => ({
+            type: 'REMOVE_ACTIVE_TASK',
+            task_id
+        }), { to: (_, {client_id}) => client_id }),
         produceResultToSession: send((_, event) => {
             const { payload } = event
 

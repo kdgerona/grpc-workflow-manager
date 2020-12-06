@@ -3,6 +3,9 @@ import { ServerDuplexStream } from 'grpc'
 export interface IClientStreamContext {
     client_id?: string
     stream?: ServerDuplexStream<IMessageEvent,IMessageEvent>
+    active_tasks: {
+        [key: string]: string
+    }
 }
 
 export interface IClientStreamSchema {
@@ -18,6 +21,8 @@ export interface IClientStreamEvents {
         | 'SEND_TO_CLIENT'
         | 'CONNECTION_CLOSED'
         | 'STREAM_ERROR'
+        | 'ADD_ACTIVE_TASK'
+        | 'REMOVE_ACTIVE_TASK'
 }
 
 export interface IMessageEvent {

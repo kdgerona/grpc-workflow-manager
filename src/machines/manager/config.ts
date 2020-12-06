@@ -90,7 +90,8 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 },
                 CONNECTION_CLOSED: {
                     actions: [
-                        'removeDisconnectedClient'
+                        'removeDisconnectedClient',
+                        'requeueActiveTasks'
                     ]
                 },
                 // Scheduler
@@ -104,7 +105,8 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 TASK_ACK: [
                     {
                         actions: [
-                            'setActiveTask'
+                            'setActiveTask',
+                            'addActiveTask'
                         ],
                         cond: 'isTaskAcknowledge'
                     },
@@ -124,6 +126,7 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         // 'produceResultToSession',
                         'getTaskData',
                         'deleteTaskToActive',
+                        'removeActiveTask',
                         'pushWorkerToQueue',
                         'checkQueues'
                     ]
