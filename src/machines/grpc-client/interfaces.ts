@@ -14,8 +14,9 @@ export interface IGrpcClientContext {
 export interface IGrpcClientSchema {
     states: {
         initialize: {}
-        listening: {}
+        send_data: {}
         retry: {}
+        success: {}
         error: {}
     }
 }
@@ -26,6 +27,7 @@ export interface IGrpcClientEvents {
         | 'CLIENT_STREAM_ERROR'
         | 'STREAM_ENDED'
         | 'STREAM_TO_SERVER'
+        | 'DATA_SENT'
 }
 
 export interface IMessageEvent {

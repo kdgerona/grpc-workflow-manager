@@ -134,7 +134,8 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     {
                         actions: [
                             'setActiveTask',
-                            'setWorkerTask' // TBD
+                            'setWorkerTask', // TBD
+                            'pushWorkerToQueue'
                         ],
                         cond: 'isTaskAcknowledge'
                     },
@@ -158,7 +159,7 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         'getTaskData',
                         'deleteTaskToActive',
                         'removeWorkerTask', // Test
-                        'pushWorkerToQueue',
+                        // 'pushWorkerToQueue', // Commented for now
                         'checkQueues'
                     ]
                 },

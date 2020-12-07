@@ -5,7 +5,7 @@ const context: IGrpcClientContext = {
     // host: process.env.HOST || 'localhost' || '10.111.2.100',
     host: process.env.GRPC_CLIENT_HOST || 'localhost',
     port: +(process.env.GRPC_CLIENT_PORT || 60051),
-    proto_path: process.env.GRPC_CLIENT_PROTO_PATH || `${__dirname}/protos/message.proto`,
+    proto_path: process.env.GRPC_CLIENT_PROTO_PATH ||`${__dirname}/../../../protos/connection.proto`,
     max_retry_count: +(process.env.GRPC_CLIENT_RETRY_COUNT || 100),
     retry_count: 0,
     grpc_client: undefined,
@@ -25,7 +25,7 @@ const config: MachineConfig<IGrpcClientContext, IGrpcClientSchema, IGrpcClientEv
                     id: 'initialize-client',
                     src: 'initializeClient',
                     onDone: {
-                        target: 'listening',
+                        target: 'send_data',
                         actions: [
                             'logClientInitialized',
                             'assignGrpcClientInstance',
@@ -39,7 +39,7 @@ const config: MachineConfig<IGrpcClientContext, IGrpcClientSchema, IGrpcClientEv
                 }
             ]
         },
-        listening: {
+        send_data: {
             invoke: [
                 {
                     id: 'start-client-service',
@@ -47,31 +47,10 @@ const config: MachineConfig<IGrpcClientContext, IGrpcClientSchema, IGrpcClientEv
                 }
             ],
             on: {
-                SEND_MESSAGE_TO_PARENT: {
-                    actions: ['sendToParent']
-                },
-                CLIENT_STREAM_ERROR: {
-                    target: 'retry',
-                    actions: ['logClientStreamError']
-                },
-                STREAM_ENDED: {
-                    actions: ['logStreamEnded']
-                },
-                STREAM_TO_SERVER: {
-                    actions: [
-                        'eventLogs',
-                        'streamToServer',
-                        // // // testing
-                        // sendParent({ type: 'TASK' , payload: {
-                        //     type: 'CREATE_USER',
-                        //     task_id: 'task-id-1',
-                        //     payload: {
-                        //         first_name: 'Test First name',
-                        //         last_name: 'Test Last name',
-                        //         email: 'test@gmail.com'
-                        //     }
-                        // }}),
-                    ]
+                // DATA_SENT: 'success',
+                DATA_SENT: {
+                    target: 'success',
+                    actions: () => console.log('Happy Done !!!')
                 }
             },
         },
@@ -89,6 +68,9 @@ const config: MachineConfig<IGrpcClientContext, IGrpcClientSchema, IGrpcClientEv
                 ]
             },
             exit: 'retryingLog',
+        },
+        success: {
+            type: 'final'
         },
         error: {
             entry: 'logClientStartError',

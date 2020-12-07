@@ -268,11 +268,11 @@ const implementation: MachineOptions<IManagerContext, any> = {
         // Kafka
         startKafkaProducer: Producer({ 
             topic: process.env.PRODUCER_TOPIC || 'DEFAULT',
-            brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
+            brokers: process.env.KAFKA_BROKERS || 'localhost',
         }),
         startKafkaConsumer: Consumer({
             topics: process.env.CONSUMER_TOPIC || 'WORKFLOW,DOMAIN_RESPONSE',
-            brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
+            brokers: process.env.KAFKA_BROKERS || 'localhost',
             consumer_config:{
                 groupId: process.env.CONSUMER_GROUP || 'workflow15',
             }

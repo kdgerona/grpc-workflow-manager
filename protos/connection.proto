@@ -3,6 +3,7 @@ package connection;
 
 service Connection {
     rpc ConnectToServer (stream MessageEvent) returns (stream MessageEvent) {}
+    rpc SendMessage (MessageEvent) returns (MessageEvent) {}
 }
 
 message MessageEvent {
