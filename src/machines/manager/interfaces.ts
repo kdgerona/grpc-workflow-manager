@@ -9,6 +9,9 @@ export interface IManagerContext {
     worker_data: {
         [key: string]: any
     }
+    grpc_client_ref: {
+        [key: string]: Actor
+    }
 }
 
 export interface IManagerSchema {

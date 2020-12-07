@@ -8,6 +8,7 @@ const { log } = actions
 import GrpcServer from '../grpc-server'
 import RedisClient from '../redis'
 import ClientStream from '../client-stream'
+import GrpcClient from '../grpc-client'
 
 const implementation: MachineOptions<IManagerContext, any> = {
     actions: {
@@ -18,7 +19,8 @@ const implementation: MachineOptions<IManagerContext, any> = {
         }),
         // Kafka Consumed
         sendDomainResponse: send((_, { payload }) => {
-            const { client_id, task_id, response} = payload
+            const { worker_data, task_id, response} = payload
+            const { client_id } = worker_data
             const { type, ...response_data } = response
             
             return {
@@ -36,7 +38,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             return client_id
         }}),
         updateResponseTaskData: async ({ redis }, { payload }) => {
-            const { task_id, response} = payload
+            const { task_id, response } = payload
             const { type, ...response_data } = response
             const task = await redis.get(`task-${task_id}`)
             const parsed_task = JSON.parse(task)
@@ -45,6 +47,29 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 current: response_data
             }))
         },
+        unaryCallOfGrpcClient: assign<IManagerContext, any>({
+            grpc_client_ref: ({ grpc_client_ref }, { payload }) => {
+                const { worker_data, task_id, response} = payload
+                const { client_id } = worker_data
+                const { type, ...response_data } = response
+                
+                console.log('@@@@@@', worker_data)
+
+                return {
+                    ...grpc_client_ref,
+                    [task_id]: spawn(GrpcClient({
+                        host: worker_data.host,
+                        port: worker_data.port,
+                        data: {
+                            type, // TASK_DONE
+                            client_id,
+                            task_id,
+                            payload: JSON.stringify(response_data)
+                        }
+                    }))
+                }
+            }
+        }),
         // getWorker: send(({ redis }, { payload }) => ({
         //     type: 'GET_WORKER',
         //     payload: {
@@ -136,10 +161,11 @@ const implementation: MachineOptions<IManagerContext, any> = {
         }), { to: 'queue-task'}),
         logReadyWorker: log((_, { client_id }) => `*** Worker ${client_id} is ready ***`),
         // Logic queue checking
-        checkQueues: send(({ redis, worker_queue }) => ({
+        checkQueues: send(({ redis, worker_queue, worker_data }) => ({
             type: 'QUEUE_CHECKER',
             payload: {
-                worker_queue
+                worker_queue,
+                worker_data
             }
         }), { to: 'queue-checker'}),
         setActiveTask: async ({ redis }, { client_id, task_id}) => {
@@ -279,14 +305,20 @@ const implementation: MachineOptions<IManagerContext, any> = {
 
                 const { workflow_task_id } = response
 
-                const client_id = await redis.get(`active-${workflow_task_id}`)
+                // const client_id = await redis.get(`active-${workflow_task_id}`)
+
+                // NEW - Getting workerid from task, worker data property
+                const { worker_data } = JSON.parse(await redis.get(`task-${workflow_task_id}`))
+
+                console.log('getWorkerId #####', worker_data)
 
                 send({
                     type: 'SEND_DOMAIN_RESPONSE',
                     payload: {
                         response,
-                        client_id,
-                        task_id: workflow_task_id
+                        // client_id,
+                        task_id: workflow_task_id,
+                        worker_data,
                     }
                 })
             }
@@ -313,7 +345,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         // Logic
         queueChecker: ({ redis }) => (send, onEvent) => {
             const checkQueue = async (event: any) => {
-                const { worker_queue } = event.payload
+                const { worker_queue, worker_data } = event.payload
 
                 const task_queue = await redis.lrange('task_queue', 0, 0)
 
@@ -330,6 +362,13 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     const parsed_task = JSON.parse(task)
 
                     console.log('Hello: @@@@@@', parsed_task)
+
+                    // Adding worker data on task
+                    const { [worker_id]: worker } = worker_data
+                    const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                        ...parsed_task,
+                        worker_data: worker
+                    }))
 
                     send({
                         type: 'SEND_TO_CLIENT',
@@ -374,6 +413,13 @@ const implementation: MachineOptions<IManagerContext, any> = {
             return parsed_payload.success
         },
         isWorkflowTopic: (_, { message_props }) => message_props.topic === "WORKFLOW",
+        isWorkerExistInManager: ({ worker_data }, { payload }) => {
+            const { client_id } = payload.worker_data
+
+            if(!worker_data[client_id]) return false
+
+            return true
+        },
     },
     activities: {},
     delays: {}

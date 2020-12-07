@@ -6,6 +6,7 @@ const context: IManagerContext = {
     redis: undefined,
     worker_queue: [],
     worker_data: {},
+    grpc_client_ref: {},
 }
 
 const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
@@ -76,12 +77,27 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         actions: ['getWorker']
                     }
                 ],
-                SEND_DOMAIN_RESPONSE: {
-                    actions: [
-                        'sendDomainResponse', // DOMAIN_RESPONSE
-                        'updateResponseTaskData'
-                    ]
-                },
+                // ** COMMENTED FOR NOW, Because unary call is implemented ***
+                // SEND_DOMAIN_RESPONSE: {
+                //     actions: [
+                //         'sendDomainResponse', // DOMAIN_RESPONSE
+                //         'updateResponseTaskData'
+                //     ]
+                // },
+                SEND_DOMAIN_RESPONSE: [
+                    {
+                        actions: [
+                            'sendDomainResponse', // DOMAIN_RESPONSE
+                            'updateResponseTaskData'
+                        ],
+                        cond: 'isWorkerExistInManager'
+                    },
+                    {
+                        actions: [
+                            'unaryCallOfGrpcClient'
+                        ]
+                    }
+                ],
                 // GRPC Server
                 NEW_CONNECTION: {
                     actions: [
