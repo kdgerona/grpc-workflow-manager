@@ -2,7 +2,7 @@ import { MachineConfig  } from 'xstate'
 import { IGrpcServerContext, IGrpcServerSchema, IGrpcServerEvents} from './interfaces'
 
 const context: IGrpcServerContext = {
-    host: process.env.HOST || 'localhost',
+    host: process.env.HOST || '10.111.2.100',
     port: +(process.env.PORT || 50051),
     proto_path: process.env.PROTO_PATH || `${__dirname}/protos/connection.proto`,
     max_retry_count: +(process.env.RETRY_COUNT || 5),

@@ -101,13 +101,17 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 }
             }
         }),
-        assignWorkerToQueue: assign(({ worker_queue }, event) => {
+        assignWorkerToQueue: assign(({ worker_queue, worker_data }, event) => {
             const { client_id, } = event.payload
 
             return {
                 worker_queue: [...worker_queue, client_id],
                 worker_data: {
-                    [client_id]: event.payload
+                    ...worker_data,
+                    [client_id]: {
+                        ...event.payload,
+                        // tasks: {}
+                    }
                 }
             }
         }),
@@ -174,6 +178,8 @@ const implementation: MachineOptions<IManagerContext, any> = {
         setWorkerTask: assign({
             worker_data: ({ worker_data }, { client_id, task_id}) => {
                 const { [client_id]: worker } = worker_data
+
+                console.log('#####', worker_data)
 
                 return {
                     ...worker_data,
@@ -268,7 +274,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             topics: process.env.CONSUMER_TOPIC || 'WORKFLOW,DOMAIN_RESPONSE',
             brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
             consumer_config:{
-                groupId: process.env.CONSUMER_GROUP || 'workflow14',
+                groupId: process.env.CONSUMER_GROUP || 'workflow15',
             }
         }),
         pushToTaskQueueRedis: ({ redis }) => (send, onEvent) => {

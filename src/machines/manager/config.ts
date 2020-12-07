@@ -117,7 +117,10 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     ]
                 },
                 REMOVE_DISCONNECTED_CLIENT: {
-                    actions: ['removeDisconnectedClient']
+                    actions: [
+                        'removeDisconnectedClient',
+                        'checkQueues' // Check again for requeued task
+                    ]
                 },
                 // Scheduler
                 ENQUEUE_TASK: {
