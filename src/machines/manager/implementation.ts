@@ -115,6 +115,14 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 }
             }
         }),
+        // New: worker presentation
+        workerPresentation: send(({ worker_data }, { type, payload }) => ({
+            type,
+            payload: {
+                ...payload, // Avoid using worker_data as key, for it will overwrite existing worker_data
+                worker_data
+            }
+        }), { to: 'worker-task-presentation'}),
         sendToClient: send((_, event) => event, { to: (_, { payload }) => payload.client_id}),
         shiftWorkerFromList: assign<IManagerContext,any>({
             worker_queue: ({ worker_queue }) => {
@@ -277,7 +285,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 groupId: process.env.CONSUMER_GROUP || 'workflow15',
             }
         }),
-        pushToTaskQueueRedis: ({ redis }) => (send, onEvent) => {
+        pushToTaskQueueRedis: ({ redis, manager_id }) => (send, onEvent) => {
             const push_to_redis = async (event) => {
                 try {
                     const { payload } = event.payload
@@ -292,7 +300,9 @@ const implementation: MachineOptions<IManagerContext, any> = {
     
                     const set_task = await redis.set(`task-${task_id}`, JSON.stringify({
                         ...event_data,
-                        task_id
+                        task_id,
+                        manager_id,
+                        status: 'pending'
                     }))
     
                     const queue_task = await redis.rpush('task_queue', task_id) // Redis array index is the returned value
@@ -373,7 +383,8 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     const { [worker_id]: worker } = worker_data
                     const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
                         ...parsed_task,
-                        worker_data: worker
+                        worker_data: worker,
+                        status: 'active'
                     }))
 
                     send({
@@ -389,7 +400,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
 
             onEvent(checkQueue)
         },
-        tasksRequeue: ({ redis }) => (send, onEvent) => {
+        tasksRequeue: ({ redis, manager_id, request_timeout_sec }) => (send, onEvent) => {
             const requeueTask = async (event) => {
                 const { worker_data, client_id } = event.payload
                 const { [client_id]: worker } = worker_data
@@ -397,7 +408,21 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 if(worker.tasks){
                     await Promise.all(Object.keys(worker.tasks).map(async (task_id) => {
                         const delete_task = await redis.del(`active-${task_id}`)
-                        const requeue_task = await redis.rpush('task_queue', task_id)
+                        // *** Commented for now ***
+                        // const requeue_task = await redis.rpush('task_queue', task_id)
+
+                        // Request timeout before requeueing.
+                        setTimeout(async () => {
+                            const parsed_task = JSON.parse(await redis.get(`task-${task_id}`))
+
+                            if(parsed_task.manager_id !== manager_id) return
+
+                            const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                                ...parsed_task,
+                                status: 'pending'
+                            }))
+                            const requeue_task = await redis.rpush('task_queue', task_id)
+                        }, request_timeout_sec * 1000)
                     }))
                 }
 
@@ -410,6 +435,33 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }
 
             onEvent(requeueTask)
+        },
+        workerTaskPresentation: ({ redis, manager_id }) => (send, onEvent) => {
+            const presentWorkerTask = async (event) => {
+                const { worker_data, active_worker_tasks, client_id } = event
+                const { [client_id]: worker } = worker_data
+                
+                await Promise.all(Object.keys(active_worker_tasks).map(async (task_id) => {
+                    const parsed_task = JSON.parse(await redis.get(`task-${task_id}`))
+
+                    if(parsed_task.status !== 'active') return
+
+                    const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                        ...parsed_task,
+                        manager_id,
+                        worker_data: worker,
+                        status: 'active',
+                    }))
+
+                    send({
+                        type: 'SET_WORKER_TASK',
+                        client_id,
+                        task_id,
+                    })
+                }))
+            }
+
+            onEvent(presentWorkerTask)
         }
     },
     guards: {

@@ -7,6 +7,8 @@ const context: IManagerContext = {
     worker_queue: [],
     worker_data: {},
     grpc_client_ref: {},
+    manager_id: process.env.MANAGER_ID || 'manager1',
+    request_timeout_sec: +(process.env.REQUEUE_TIMEOUT_SEC || 15)
 }
 
 const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
@@ -62,6 +64,10 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     id: 'tasks-requeue',
                     src: 'tasksRequeue'
                 },
+                {
+                    id: 'worker-task-presentation',
+                    src: 'workerTaskPresentation'
+                }
             ],
             on: {
                 // Kafka
@@ -103,8 +109,12 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     actions: [
                         'spawnClientStream',
                         'assignWorkerToQueue',
+                        'workerPresentation',
                         'checkQueues'
                     ]
+                },
+                SET_WORKER_TASK: {
+                    actions: ['setWorkerTask']
                 },
                 SEND_TO_CLIENT: {
                     actions: [

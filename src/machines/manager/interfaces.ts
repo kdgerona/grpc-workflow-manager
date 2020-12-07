@@ -12,6 +12,8 @@ export interface IManagerContext {
     grpc_client_ref: {
         [key: string]: Actor
     }
+    manager_id: string
+    request_timeout_sec: number
 }
 
 export interface IManagerSchema {
@@ -43,6 +45,7 @@ export interface IManagerEvents {
         | 'SEND_DOMAIN_RESPONSE'
         | 'PRODUCE_TO_SESSION'
         | 'REMOVE_DISCONNECTED_CLIENT'
+        | 'SET_WORKER_TASK'
 }
 
 export interface INewTask {
