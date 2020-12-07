@@ -76,13 +76,12 @@ const implementation: MachineOptions<IManagerContext, any> = {
         //         response: payload
         //     }
         // }), { to: 'get-worker'}),
-        getWorker: send(({ redis }, { payload }) => {
-            return {
+        getWorker: send(({ redis }, { payload }) => ({
             type: 'GET_WORKER',
             payload: {
                 response: payload
             }
-        }}, { to: 'get-worker'}),
+        }), { to: 'get-worker'}),
         sendTaskToScheduler: send((_, { payload }) => ({
             type: 'ENQUEUE_TASK',
             payload
@@ -167,21 +166,33 @@ const implementation: MachineOptions<IManagerContext, any> = {
         }), { to: 'tasks-requeue'}),
         // Scheduler
         logTaskReceived: log('A new task received'),
-        pushTaskQueue: send(({ redis }, { payload }) => ({
-            type: 'PUSH_TASK',
-            payload
-        }), { to: 'queue-task'}),
+        // pushTaskQueue: send(({ redis }, { payload }) => ({
+        //     type: 'PUSH_TASK',
+        //     payload
+        // }), { to: 'queue-task'}),
+        pushTaskQueue: send(({ redis }, event) => event, { to: 'queue-task'}),
         logReadyWorker: log((_, { client_id }) => `*** Worker ${client_id} is ready ***`),
         // Logic queue checking
         checkQueues: send(({ redis, worker_queue, worker_data }) => ({
             type: 'QUEUE_CHECKER',
             payload: {
                 worker_queue,
-                worker_data
+                // worker_data
             }
         }), { to: 'queue-checker'}),
-        setActiveTask: async ({ redis }, { client_id, task_id}) => {
+        setActiveTask: async ({ redis, worker_data }, { client_id, task_id}) => {
             const active_task = await redis.set(`active-${task_id}`, client_id)
+
+            const task = await redis.get(`task-${task_id}`)
+            const parsed_task = JSON.parse(task)
+
+            // Adding worker data on task
+            const { [client_id]: worker } = worker_data
+            const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                ...parsed_task,
+                worker_data: worker,
+                status: 'active'
+            }))
         },
         setWorkerTask: assign({
             worker_data: ({ worker_data }, { client_id, task_id}) => {
@@ -269,6 +280,15 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }))
         },
         logCompletedTask: log((_, event) => `COMPLETED: ${JSON.stringify(event, null, 4)}`),
+        updateTaskWorkerData: async ({ redis, worker_data }, { task_id, client_id }) => {
+            const { [client_id]: worker } = worker_data
+            const parsed_task = JSON.parse(await redis.get(`task-${task_id}`))
+            const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                ...parsed_task,
+                worker_data: worker,
+                status: 'active'
+            }))
+        }
     },
     services: {
         initGrpcServer: GrpcServer,
@@ -361,7 +381,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         // Logic
         queueChecker: ({ redis }) => (send, onEvent) => {
             const checkQueue = async (event: any) => {
-                const { worker_queue, worker_data } = event.payload
+                const { worker_queue } = event.payload
 
                 const task_queue = await redis.lrange('task_queue', 0, 0)
 
@@ -380,12 +400,12 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     console.log('Hello: @@@@@@', parsed_task)
 
                     // Adding worker data on task
-                    const { [worker_id]: worker } = worker_data
-                    const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
-                        ...parsed_task,
-                        worker_data: worker,
-                        status: 'active'
-                    }))
+                    // const { [worker_id]: worker } = worker_data
+                    // const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                    //     ...parsed_task,
+                    //     worker_data: worker,
+                    //     status: 'active'
+                    // }))
 
                     send({
                         type: 'SEND_TO_CLIENT',
@@ -441,7 +461,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 const { worker_data, active_worker_tasks, client_id } = event
                 const { [client_id]: worker } = worker_data
                 
-                await Promise.all(Object.keys(active_worker_tasks).map(async (task_id) => {
+                await Promise.all(active_worker_tasks.map(async (task_id) => {
                     const parsed_task = JSON.parse(await redis.get(`task-${task_id}`))
 
                     if(parsed_task.status !== 'active') return

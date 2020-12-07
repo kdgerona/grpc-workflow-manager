@@ -76,7 +76,11 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 },
                 RECEIVED_MESSAGE_KAFKA: [
                     {
-                        actions: ['sendTaskToScheduler'],
+                        actions: [
+                            // 'sendTaskToScheduler',
+                            'logTaskReceived',
+                            'pushTaskQueue',
+                        ],
                         cond: 'isWorkflowTopic' // WORKFLOW topic
                     },
                     {
@@ -104,6 +108,12 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         ]
                     }
                 ],
+                RECEIVE_FROM_UNARY: {
+                    actions: [
+                        'updateTaskWorkerData',
+                        'setWorkerTask'
+                    ]
+                },
                 // GRPC Server
                 NEW_CONNECTION: {
                     actions: [
@@ -126,19 +136,20 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         'requeueTasksDiconnectedClient'
                     ]
                 },
-                REMOVE_DISCONNECTED_CLIENT: {
+                REMOVE_DISCONNECTED_CLIENT: { // Separated this event, because I still need to use the data before removing it.
                     actions: [
                         'removeDisconnectedClient',
                         'checkQueues' // Check again for requeued task
                     ]
                 },
+                // *** Commented for now ***
                 // Scheduler
-                ENQUEUE_TASK: {
-                    actions: [
-                        'logTaskReceived',
-                        'pushTaskQueue',
-                    ]
-                },
+                // ENQUEUE_TASK: {
+                //     actions: [
+                //         'logTaskReceived',
+                //         'pushTaskQueue',
+                //     ]
+                // },
                 // Tracker
                 TASK_ACK: [
                     {

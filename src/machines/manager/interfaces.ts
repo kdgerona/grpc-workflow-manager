@@ -46,6 +46,7 @@ export interface IManagerEvents {
         | 'PRODUCE_TO_SESSION'
         | 'REMOVE_DISCONNECTED_CLIENT'
         | 'SET_WORKER_TASK'
+        | 'RECEIVE_FROM_UNARY'
 }
 
 export interface INewTask {

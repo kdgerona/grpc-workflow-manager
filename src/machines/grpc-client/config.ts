@@ -50,7 +50,7 @@ const config: MachineConfig<IGrpcClientContext, IGrpcClientSchema, IGrpcClientEv
                 // DATA_SENT: 'success',
                 DATA_SENT: {
                     target: 'success',
-                    actions: () => console.log('Happy Done !!!')
+                    actions: () => console.log('Happy Done !!!') // Testing log
                 }
             },
         },
