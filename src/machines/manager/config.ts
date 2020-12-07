@@ -56,7 +56,11 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 {
                     id: 'get-task',
                     src: 'getTask'
-                }
+                },
+                {
+                    id: 'tasks-requeue',
+                    src: 'tasksRequeue'
+                },
             ],
             on: {
                 // Kafka
@@ -73,7 +77,10 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     }
                 ],
                 SEND_DOMAIN_RESPONSE: {
-                    actions: ['sendDomainResponse'] // DOMAIN_RESPONSE
+                    actions: [
+                        'sendDomainResponse', // DOMAIN_RESPONSE
+                        'updateResponseTaskData'
+                    ]
                 },
                 // GRPC Server
                 NEW_CONNECTION: {
@@ -90,8 +97,11 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 },
                 CONNECTION_CLOSED: {
                     actions: [
-                        'removeDisconnectedClient'
+                        'requeueTasksDiconnectedClient'
                     ]
+                },
+                REMOVE_DISCONNECTED_CLIENT: {
+                    actions: ['removeDisconnectedClient']
                 },
                 // Scheduler
                 ENQUEUE_TASK: {
@@ -104,7 +114,8 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                 TASK_ACK: [
                     {
                         actions: [
-                            'setActiveTask'
+                            'setActiveTask',
+                            'setWorkerTask' // TBD
                         ],
                         cond: 'isTaskAcknowledge'
                     },
@@ -113,7 +124,10 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                     }
                 ],
                 PRODUCE_MESSAGE_TO_DOMAIN: {
-                    actions: ['produceToDomain']
+                    actions: [
+                        'produceToDomain',
+                        'updateTaskData'
+                    ]
                 },
                 // WORK_PROGRESS: {
                 //     actions: ['updateTaskData']
@@ -124,6 +138,7 @@ const config: MachineConfig<IManagerContext, IManagerSchema, IManagerEvents> = {
                         // 'produceResultToSession',
                         'getTaskData',
                         'deleteTaskToActive',
+                        'removeWorkerTask', // Test
                         'pushWorkerToQueue',
                         'checkQueues'
                     ]

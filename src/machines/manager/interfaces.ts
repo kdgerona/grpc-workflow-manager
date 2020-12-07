@@ -39,6 +39,7 @@ export interface IManagerEvents {
         | 'CONSUMER_KAFKA_READY'
         | 'SEND_DOMAIN_RESPONSE'
         | 'PRODUCE_TO_SESSION'
+        | 'REMOVE_DISCONNECTED_CLIENT'
 }
 
 export interface INewTask {

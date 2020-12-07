@@ -35,6 +35,16 @@ const implementation: MachineOptions<IManagerContext, any> = {
 
             return client_id
         }}),
+        updateResponseTaskData: async ({ redis }, { payload }) => {
+            const { task_id, response} = payload
+            const { type, ...response_data } = response
+            const task = await redis.get(`task-${task_id}`)
+            const parsed_task = JSON.parse(task)
+            const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
+                ...parsed_task,
+                current: response_data
+            }))
+        },
         // getWorker: send(({ redis }, { payload }) => ({
         //     type: 'GET_WORKER',
         //     payload: {
@@ -111,6 +121,13 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 worker_queue: new_worker_queue
             }
         }),
+        requeueTasksDiconnectedClient: send(({ worker_data }, { payload }) => ({
+            type: 'TASKS_REQUEUE_DISCONNECTED',
+            payload: {
+                worker_data,
+                client_id: payload.client_id
+            }
+        }), { to: 'tasks-requeue'}),
         // Scheduler
         logTaskReceived: log('A new task received'),
         pushTaskQueue: send(({ redis }, { payload }) => ({
@@ -128,6 +145,38 @@ const implementation: MachineOptions<IManagerContext, any> = {
         setActiveTask: async ({ redis }, { client_id, task_id}) => {
             const active_task = await redis.set(`active-${task_id}`, client_id)
         },
+        setWorkerTask: assign({
+            worker_data: ({ worker_data }, { client_id, task_id}) => {
+                const { [client_id]: worker } = worker_data
+
+                return {
+                    ...worker_data,
+                    [client_id]: {
+                        ...worker,
+                        tasks: {
+                            ...worker.tasks, 
+                            [task_id]: client_id
+                        }
+                    }
+                }
+            }
+        }),
+        removeWorkerTask: assign({
+            worker_data: ({ worker_data }, { client_id, task_id}) => {
+                const { [client_id]: worker } = worker_data
+                const { [task_id]: task, ...new_worker_tasks } = worker.tasks
+
+                return {
+                    ...worker_data,
+                    [client_id]: {
+                        ...worker,
+                        tasks: {
+                            ...new_worker_tasks
+                        }
+                    }
+                }
+            }
+        }),
         requeueTask: async ({ redis }, { task_id }) => {
             const requeue_task = await redis.rpush('task_queue', task_id)
         },
@@ -171,9 +220,12 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }
         }, {to: 'kafka-producer'}),
         updateTaskData: async ({ redis }, { task_id, payload }) => {
+            const parsed_payload = JSON.parse(payload)
+            const task = await redis.get(`task-${task_id}`)
+            const parsed_task = JSON.parse(task)
             const update_task_data = await redis.set(`task-${task_id}`, JSON.stringify({
-                ...payload,
-                task_id
+                ...parsed_task,
+                current: parsed_payload
             }))
         },
         logCompletedTask: log((_, event) => `COMPLETED: ${JSON.stringify(event, null, 4)}`),
@@ -190,7 +242,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             topics: process.env.CONSUMER_TOPIC || 'WORKFLOW,DOMAIN_RESPONSE',
             brokers: process.env.KAFKA_BROKERS || '10.111.2.100',
             consumer_config:{
-                groupId: process.env.CONSUMER_GROUP || 'workflow13',
+                groupId: process.env.CONSUMER_GROUP || 'workflow14',
             }
         }),
         pushToTaskQueueRedis: ({ redis }) => (send, onEvent) => {
@@ -260,10 +312,6 @@ const implementation: MachineOptions<IManagerContext, any> = {
         },
         // Logic
         queueChecker: ({ redis }) => (send, onEvent) => {
-            // Bug: by the time this service is invoked,
-            // the redis instace is still undefined,
-            // Since the it does not get the latest context,
-            // need to always pass the redis instance on event
             const checkQueue = async (event: any) => {
                 const { worker_queue } = event.payload
 
@@ -295,6 +343,28 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }
 
             onEvent(checkQueue)
+        },
+        tasksRequeue: ({ redis }) => (send, onEvent) => {
+            const requeueTask = async (event) => {
+                const { worker_data, client_id } = event.payload
+                const { [client_id]: worker } = worker_data
+
+                if(worker.tasks){
+                    await Promise.all(Object.keys(worker.tasks).map(async (task_id) => {
+                        const delete_task = await redis.del(`active-${task_id}`)
+                        const requeue_task = await redis.rpush('task_queue', task_id)
+                    }))
+                }
+
+                send({
+                    type: 'REMOVE_DISCONNECTED_CLIENT',
+                    payload: {
+                        client_id
+                    }
+                })
+            }
+
+            onEvent(requeueTask)
         }
     },
     guards: {
