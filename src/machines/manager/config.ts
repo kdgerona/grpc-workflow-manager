@@ -4,7 +4,8 @@ import { IManagerContext, IManagerSchema, IManagerEvents } from './interfaces'
 const context: IManagerContext = {
     clients: {},
     redis: undefined,
-    worker_queue: [],
+    // worker_queue: [],
+    worker_queue: {},
     worker_data: {},
     grpc_client_ref: {},
     manager_id: process.env.MANAGER_ID || 'manager1',

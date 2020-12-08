@@ -10,6 +10,11 @@ import RedisClient from '../redis'
 import ClientStream from '../client-stream'
 import GrpcClient from '../grpc-client'
 
+// Dictionary for Workflow Types
+const workflow_type = { // key:value = SESSION_REQ_TYPE:WORKFLOW_TYPE
+    CREATE_USER: 'CREATE_USER'
+}
+
 const implementation: MachineOptions<IManagerContext, any> = {
     actions: {
         startGrpcServer: send('START_GRPC_SERVER', { to: 'grpc-server'}),
@@ -101,10 +106,16 @@ const implementation: MachineOptions<IManagerContext, any> = {
             }
         }),
         assignWorkerToQueue: assign(({ worker_queue, worker_data }, event) => {
-            const { client_id, } = event.payload
+            const { client_id, worker_type } = event.payload
+            // const type = workflow_type[worker_type]
+            const worker_type_queue = worker_queue[worker_type]
 
             return {
-                worker_queue: [...worker_queue, client_id],
+                // worker_queue: [...worker_queue, client_id],
+                worker_queue: {
+                    ...worker_queue,
+                    [worker_type]: [...worker_type_queue, client_id]
+                },
                 worker_data: {
                     ...worker_data,
                     [client_id]: {
@@ -124,14 +135,31 @@ const implementation: MachineOptions<IManagerContext, any> = {
         }), { to: 'worker-task-presentation'}),
         sendToClient: send((_, event) => event, { to: (_, { payload }) => payload.client_id}),
         shiftWorkerFromList: assign<IManagerContext,any>({
-            worker_queue: ({ worker_queue }) => {
-                const [shifted_worker, ...new_worker_queue] = worker_queue
+            worker_queue: ({ worker_queue }, { payload }) => {
+                const { worker_type } = payload
 
-                return [...new_worker_queue]
+                // const type = workflow_type[worker_type]
+                const worker_type_queue = worker_queue[worker_type]
+
+                const [shifted_worker, ...new_worker_queue] = worker_type_queue
+
+                // return [...new_worker_queue]
+                return {
+                    ...worker_queue,
+                    [worker_type]: [...new_worker_queue]
+                }
             }
         }),
         pushWorkerToQueue: assign({
-            worker_queue: ({ worker_queue }, { client_id }) => [...worker_queue, client_id]
+            worker_queue: ({ worker_queue }, { client_id, worker_type }) => {
+                // const type = workflow_type[worker_type]
+                const worker_type_queue = worker_queue[worker_type]
+
+                return {
+                    ...worker_queue,
+                    [worker_type]: [...worker_type_queue, client_id]
+                }
+            }
         }),
         removeDisconnectedClient: assign((context, event) => {
             const { clients, worker_data, worker_queue } = context
@@ -145,7 +173,9 @@ const implementation: MachineOptions<IManagerContext, any> = {
             const { [client_id]: worker, ...new_worker_data } = worker_data
 
             // Worker Queue
-            const new_worker_queue = worker_queue.filter(worker_id => worker_id !== client_id)
+            const { worker_type } = worker
+            const worker_type_queue = worker_queue[worker_type]
+            const new_worker_queue = worker_type_queue.filter(worker_id => worker_id !== client_id)
 
             return {
                 clients: {
@@ -154,7 +184,10 @@ const implementation: MachineOptions<IManagerContext, any> = {
                 worker_data: {
                     ...new_worker_data
                 },
-                worker_queue: new_worker_queue
+                worker_queue: {
+                    ...worker_queue,
+                    [worker_type]: new_worker_queue
+                }
             }
         }),
         requeueTasksDiconnectedClient: send(({ worker_data }, { payload }) => ({
@@ -177,7 +210,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
             type: 'QUEUE_CHECKER',
             payload: {
                 worker_queue,
-                // worker_data
+                worker_data
             }
         }), { to: 'queue-checker'}),
         setActiveTask: async ({ redis, worker_data }, { client_id, task_id}) => {
@@ -381,7 +414,7 @@ const implementation: MachineOptions<IManagerContext, any> = {
         // Logic
         queueChecker: ({ redis }) => (send, onEvent) => {
             const checkQueue = async (event: any) => {
-                const { worker_queue } = event.payload
+                const { worker_queue, worker_data } = event.payload
 
                 const task_queue = await redis.lrange('task_queue', 0, 0)
 
@@ -391,7 +424,11 @@ const implementation: MachineOptions<IManagerContext, any> = {
                     // Presention Phase, task is still to be acknowledge
                     const task_id = await redis.lpop('task_queue')
                     const worker_id = worker_queue[0]
-                    send('SHIFT_WORKER')
+                    const worker = worker_data[worker_id]
+                    send({
+                        type: 'SHIFT_WORKER',
+                        payload: worker
+                    })
 
                     const task = await redis.get(`task-${task_id}`)
                     // const { session_id, ...parsed_task} = JSON.parse(task)

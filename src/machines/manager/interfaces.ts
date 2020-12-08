@@ -5,7 +5,10 @@ export interface IManagerContext {
         [key: string]: Actor
     }
     redis?: any
-    worker_queue: string[]
+    // worker_queue: string[]
+    worker_queue: {
+        [key: string]: string[]
+    }
     worker_data: {
         [key: string]: any
     }
